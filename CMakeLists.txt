@@ -1,7 +1,10 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
-project(calculator)
-project(libmath LANGUAGES CXX)
+project(calculator LANGUAGES CXX)
+
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(DBUS REQUIRED dbus-1)
 
 include(FetchContent)
 
@@ -18,11 +21,15 @@ add_executable(calculator
     src/main.cpp
 )
 
+target_include_directories(calculator PRIVATE
+    ${DBUS_INCLUDE_DIRS}
+)
 target_link_libraries(calculator
     PRIVATE
         math
+        ${DBUS_LIBRARIES}
 )
-
+target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
 install(TARGETS calculator
     RUNTIME DESTINATION /usr/local/bin
 )
