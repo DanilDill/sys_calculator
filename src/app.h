@@ -2,5 +2,5 @@
 
 namespace app
 {
-void run(int argc, char** argv);
+char* run(const char* expression);
 }

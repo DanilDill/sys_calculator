@@ -1,7 +1,10 @@
 #include "app.h"
+#include "args_parser.h"
 #include "libmath.h"
 #include <execinfo.h>
 #include <iostream>
+#include <cstdio>
+#include <cstdlib>
 
 namespace
 {
@@ -77,36 +80,47 @@ void calculate(Task& task)
 	}
 }
 
-void output(Task task)
+char* output(Task task)
 {
+    // Allocate buffer with sufficient size
+    char* buffer = static_cast<char*>(malloc(256 * sizeof(char)));
+    if (!buffer) {
+        return nullptr;
+    }
+    
 	if (task.status == 0)
 	{
 		if (task.operation != '!')
         {
-            std::cout << task.value1 << ' ' << task.operation << ' ' << task.value2 << " = " << task.result << '\n';
+            snprintf(buffer, 256, "%d %c %d = %d", task.value1, task.operation, task.value2, task.result);
         }
         else
         {
-            std::cout << task.value1 << ' ' << task.operation << ' ' << " = " << task.result << '\n';
+            snprintf(buffer, 256, "%d %c = %d", task.value1, task.operation, task.result);
         }
-        
 	}
 	else if (task.status == -1)
 	{
-        fprintf(stderr, "Error! Division by zero!\n");
+        snprintf(buffer, 256, "Error! Division by zero!");
 	}
 	else if (task.status == 1)
 	{
-        fprintf(stderr, "Error! Unknown operation!\n");
+        snprintf(buffer, 256, "Error! Unknown operation!");
 	}
     else if (task.status == -2)
 	{
-        fprintf(stderr, "Error! Overflow!\n");
+        snprintf(buffer, 256, "Error! Overflow!");
 	}
+    else if (task.status == -3)
+    {
+        snprintf(buffer, 256, "Error! Incorrect arguments!");
+    }
 	else
 	{
-		std::cout << "Unknown error\n";
+		snprintf(buffer, 256, "Unknown error");
 	}
+    
+    return buffer;
 }
 
 }
@@ -114,20 +128,42 @@ void output(Task task)
 namespace app
 {
 
-void run(int argc, char** argv)
+char* run(const char* expression)
 {
-	Task task;
-	if( parse(argc, argv, task) == 0)
-    {
-        calculate(task);
+    if (!expression) {
+        char* error = static_cast<char*>(malloc(256 * sizeof(char)));
+        if (error) {
+            snprintf(error, 256, "Error! NULL expression!");
+        }
+        return error;
     }
-    else
-    {
-        fprintf(stderr, "Error! Incorrect arguments!\n");
-    }
-    output(task);
     
-	
+	Task task;
+    
+    // Parse expression into command-line arguments
+    int argc;
+    char** argv = parse_arguments_c(expression, &argc);
+    
+    if (!argv) {
+        char* error = static_cast<char*>(malloc(256 * sizeof(char)));
+        if (error) {
+            snprintf(error, 256, "Error! Memory allocation failed!");
+        }
+        return error;
+    }
+    
+    int parse_result = parse(argc, argv, task);
+    
+    // Free argument memory
+    free_arguments_c(argv, argc);
+    
+    if (parse_result == 0) {
+        calculate(task);
+    } else {
+        // parse already set task.status for incorrect arguments
+    }
+    
+    return output(task);
 }
 
 }

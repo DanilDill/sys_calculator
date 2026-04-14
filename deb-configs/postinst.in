@@ -1,0 +1,39 @@
+#!/bin/bash
+mkdir -p /etc/systemd/system/
+cat << EOF > /etc/systemd/system/@PROJECT_NAME@.service
+[Unit]
+Description=@PROJECT_DESCRIPTION@
+After=network.target
+
+[Service]
+Type=simple
+User=@PROJECT_NAME@
+Group=@PROJECT_NAME@
+ExecStart=/usr/bin/dbus-run-session @CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
+Restart=always
+RestartSec=3s
+WorkingDirectory=@CMAKE_INSTALL_PREFIX@/bin
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+
+echo 'Создаём пользователя и группу @PROJECT_NAME@'
+groupadd -f @PROJECT_NAME@
+useradd -m -k /dev/null -g @PROJECT_NAME@ @PROJECT_NAME@
+usermod -a -G @PROJECT_NAME@ @PROJECT_NAME@
+
+echo 'Устанавливаем права на файлы'
+chown -R @PROJECT_NAME@:@PROJECT_NAME@ @CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
+chmod 755 @CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
+
+echo 'Запускаем @PROJECT_NAME@'
+systemctl enable @PROJECT_NAME@
+systemctl start @PROJECT_NAME@
+
+sleep 1
+
+echo 'Состояние сервиса @PROJECT_NAME@'
+systemctl --no-pager status @PROJECT_NAME@

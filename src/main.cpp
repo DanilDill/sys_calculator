@@ -9,13 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "app.h"
 
-#define SERVICE_NAME      "com.example.HelloService"
-#define OBJECT_PATH       "/com/example/HelloObject"
-#define INTERFACE_NAME    "com.example.HelloInterface"
-
+#define SERVICE_NAME      "com.example.CalculatorService"
+#define OBJECT_PATH       "/com/example/CalculatorObject"
+#define INTERFACE_NAME    "com.example.CalculatorInterface"
+#define METHOD_NAME      "Calculate"
 static dbus_bool_t handle_method_call(DBusConnection *conn, DBusMessage *msg) {
-    if (!dbus_message_is_method_call(msg, INTERFACE_NAME, "SayHello")) {
+    if (!dbus_message_is_method_call(msg, INTERFACE_NAME, METHOD_NAME)) {
         return FALSE;
     }
 
@@ -24,11 +25,11 @@ static dbus_bool_t handle_method_call(DBusConnection *conn, DBusMessage *msg) {
         return FALSE;
     }
 
-    const char *input_name = NULL;
+    const char *input = NULL;
     DBusError err;
     dbus_error_init(&err);
 
-    if (!dbus_message_get_args(msg, &err, DBUS_TYPE_STRING, &input_name, DBUS_TYPE_INVALID)) {
+    if (!dbus_message_get_args(msg, &err, DBUS_TYPE_STRING, &input, DBUS_TYPE_INVALID)) {
         fprintf(stderr, "Failed to get argument: %s\n", err.message);
         dbus_error_free(&err);
 
@@ -40,30 +41,45 @@ static dbus_bool_t handle_method_call(DBusConnection *conn, DBusMessage *msg) {
         return TRUE; // ошибка обработана
     }
 
-    if (input_name == NULL) {
-        input_name = "anonymous";
+    if (input == NULL) {
+        input = "0"; // Default to 0 if no input
     }
 
-    char greeting[512];
-    snprintf(greeting, sizeof(greeting), "Hello, %s!", input_name);
+    // Call calculator directly with the input string
+    char* result = app::run(input);
 
     DBusMessage *reply = dbus_message_new_method_return(msg);
     if (!reply) {
+        if (result) {
+            free(result); // Free calculator result if reply creation failed
+        }
         fprintf(stderr, "Failed to create reply message\n");
         return FALSE;
     }
 
-    const char *greeting_cstr = greeting;
+    const char* greeting_cstr = result ? result : "Error: Calculator returned null";
+    
     if (!dbus_message_append_args(reply, DBUS_TYPE_STRING, &greeting_cstr, DBUS_TYPE_INVALID)) {
         fprintf(stderr, "Failed to append reply args\n");
+        if (result) {
+            free(result);
+        }
         dbus_message_unref(reply);
         return FALSE;
     }
 
     if (!dbus_connection_send(conn, reply, NULL)) {
         fprintf(stderr, "Failed to send reply\n");
+        if (result) {
+            free(result);
+        }
         dbus_message_unref(reply);
         return FALSE;
+    }
+
+    // Free calculator result after successful send
+    if (result) {
+        free(result);
     }
 
     dbus_connection_flush(conn);
@@ -72,11 +88,12 @@ static dbus_bool_t handle_method_call(DBusConnection *conn, DBusMessage *msg) {
 }
 
 /*
-busctl --user call com.example.HelloService \
-                   /com/example/HelloObject \
-                   com.example.HelloInterface \
-                   SayHello \
-                   s "Bob"
+Example usage:
+busctl --user call com.example.CalculatorService \
+                   /com/example/CalculatorObject \
+                   com.example.CalculatorInterface \
+                   Calculate \
+                   s "1 + 4"
 */
 int main(void) {
     DBusError err;
@@ -111,10 +128,10 @@ int main(void) {
     printf("✅ Service '%s' is running on session bus.\n", SERVICE_NAME);
     printf("Object: %s\n", OBJECT_PATH);
     printf("Interface: %s\n", INTERFACE_NAME);
-    printf("Method: SayHello(string) -> string\n");
+    printf("Method: Calculate(string) -> string\n");
     printf("\nTry in another terminal:\n");
-    printf("  busctl --user call %s %s %s SayHello s \"Alice\"\n\n", 
-           SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME);
+    printf("  busctl --user call %s %s %s %s  s \"5 + 5\"\n\n", 
+           SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME,METHOD_NAME);
 
     while (1) {
         // Ждём до 100 мс новых сообщений
