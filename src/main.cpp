@@ -89,7 +89,7 @@ static dbus_bool_t handle_method_call(DBusConnection *conn, DBusMessage *msg) {
 
 /*
 Example usage:
-busctl --user call com.example.CalculatorService \
+busctl -- call com.example.CalculatorService \
                    /com/example/CalculatorObject \
                    com.example.CalculatorInterface \
                    Calculate \
@@ -99,7 +99,7 @@ int main(void) {
     DBusError err;
     dbus_error_init(&err);
 
-    DBusConnection *conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+    DBusConnection *conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
     if (dbus_error_is_set(&err)) {
         fprintf(stderr, "Cannot connect to session bus: %s\n", err.message);
         dbus_error_free(&err);
@@ -130,7 +130,7 @@ int main(void) {
     printf("Interface: %s\n", INTERFACE_NAME);
     printf("Method: Calculate(string) -> string\n");
     printf("\nTry in another terminal:\n");
-    printf("  busctl --user call %s %s %s %s  s \"5 + 5\"\n\n", 
+    printf("  busctl  call %s %s %s %s  s \"5 + 5\"\n\n", 
            SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME,METHOD_NAME);
 
     while (1) {

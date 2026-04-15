@@ -1,15 +1,23 @@
 #!/bin/bash
+
+
+SERVICE_NAME="com.example.CalculatorService"
+UNIT_PATH="/etc/systemd/system/calculator.service"
+POLICY_PATH="/etc/dbus-1/system.d/com.example.CalculatorService.conf"
+
+
 mkdir -p /etc/systemd/system/
 cat << EOF > /etc/systemd/system/@PROJECT_NAME@.service
 [Unit]
 Description=@PROJECT_DESCRIPTION@
-After=network.target
+After=dbus.service
+Requires=dbus.service
 
 [Service]
-Type=simple
+Type=dbus
 User=@PROJECT_NAME@
 Group=@PROJECT_NAME@
-ExecStart=/usr/bin/dbus-run-session @CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
 Restart=always
 RestartSec=3s
 WorkingDirectory=@CMAKE_INSTALL_PREFIX@/bin
@@ -20,14 +28,44 @@ EOF
 
 systemctl daemon-reload
 
-echo 'Создаём пользователя и группу @PROJECT_NAME@'
-groupadd -f @PROJECT_NAME@
-useradd -m -k /dev/null -g @PROJECT_NAME@ @PROJECT_NAME@
-usermod -a -G @PROJECT_NAME@ @PROJECT_NAME@
+echo "Добавляем D-Bus policy (разрешаем calculator владеть именем на system bus)"
+mkdir -p /etc/dbus-1/system.d
+cat > "$POLICY_PATH" <<EOF
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+
+  <policy user="calculator">
+    <allow own="${SERVICE_NAME}"/>
+  </policy>
+
+  <policy context="default">
+    <allow send_destination="${SERVICE_NAME}"/>
+  </policy>
+
+</busconfig>
+EOF
+
+echo "Создаём пользователя и группу calculator (если ещё не существуют)"
+if ! getent group calculator >/dev/null; then
+  groupadd -f  @PROJECT_NAME@
+fi
+
+if ! id -u calculator >/dev/null 2>&1; then
+  useradd -m -k /dev/null -g @PROJECT_NAME@ @PROJECT_NAME@
+fi
+
+
 
 echo 'Устанавливаем права на файлы'
 chown -R @PROJECT_NAME@:@PROJECT_NAME@ @CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
 chmod 755 @CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
+
+echo "Перечитываем конфигурации systemd"
+systemctl daemon-reload
+
+echo "Перезапускаем системный D-Bus для применения policy"
+systemctl restart dbus.service
 
 echo 'Запускаем @PROJECT_NAME@'
 systemctl enable @PROJECT_NAME@
