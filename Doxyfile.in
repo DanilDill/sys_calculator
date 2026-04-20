@@ -1,0 +1,129 @@
+# Doxygen Configuration File for sys_calculator
+# This is a template file processed by CMake
+
+# Project related configuration
+PROJECT_NAME           = "@PROJECT_NAME@"
+PROJECT_NUMBER         = "@CPACK_PACKAGE_VERSION@"
+PROJECT_BRIEF          = "System Calculator Service"
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs
+
+# Input files configuration
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/src
+RECURSIVE              = YES
+FILE_PATTERNS          = *.cpp *.h *.hpp *.cc *.cxx
+EXCLUDE_PATTERNS       = */build/* */cmake/*
+EXCLUDE_SYMBOLS        = 
+
+# Language settings
+OPTIMIZE_OUTPUT_FOR_C  = NO
+CPP_CLI_SUPPORT        = NO
+
+# Extraction mode
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+# Documentation extraction
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = NO
+MULTILINE_CPP_IS_BRIEF = NO
+
+# Comments processing
+STRIP_FROM_PATH        = @CMAKE_CURRENT_SOURCE_DIR@
+STRIP_FROM_INC_PATH    = 
+
+# Build related
+FULL_PATH_NAMES        = YES
+SHORT_NAMES            = NO
+
+# HTML output
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_HEADER            = 
+HTML_FOOTER            = 
+HTML_STYLESHEET        = 
+HTML_EXTRA_STYLESHEET  = 
+HTML_COLORSTYLE        = LIGHT
+HTML_TIMESTAMP         = YES
+HTML_DYNAMIC_SECTIONS  = NO
+HTML_INDEX_NUM_ENTRIES = 100
+
+# LaTeX output (optional)
+GENERATE_LATEX         = NO
+LATEX_OUTPUT           = latex
+
+# XML output (optional)
+GENERATE_XML           = NO
+XML_OUTPUT             = xml
+
+# Man page output (optional)
+GENERATE_MAN           = NO
+MAN_OUTPUT             = man
+
+# RTF output (optional)
+GENERATE_RTF           = NO
+
+# Diagrams and graphs
+HAVE_DOT               = YES
+UML_LOOK               = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+GROUP_GRAPHS           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+GRAPHICAL_HIERARCHY    = YES
+DIRECTORY_GRAPH        = YES
+DOT_IMAGE_FORMAT       = png
+INTERACTIVE_SVG        = NO
+DOT_PATH               = 
+DOTFILE_DIRS           = 
+MSCGEN_PATH            = 
+DIA_PATH               = 
+DOT_FONTNAME           = Helvetica
+DOT_FONTSIZE           = 10
+DOT_FONTPATH           = 
+
+# Preprocessor configuration
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = 
+INCLUDE_FILE_PATTERNS  = 
+PREDEFINED             = 
+EXPAND_AS_DEFINED      = 
+SKIP_FUNCTION_MACROS   = YES
+
+# Source browser
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = YES
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+REFERENCES_LINK_SOURCE = YES
+
+# Alphabetical index
+ALPHABETICAL_INDEX     = YES
+COLS_IN_ALPHA_INDEX    = 5
+IGNORE_PREFIX          = 
+
+# Search engine
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+EXTERNAL_SEARCH        = NO
+
+# Miscellaneous
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_FORMAT            = "$file:$line: $text"
+WARN_LOGFILE           = 
+
+# Input encoding
+INPUT_ENCODING         = UTF-8

@@ -70,5 +70,22 @@ add_custom_target(package_calculator
     USES_TERMINAL
 )
 
+
 # Enable CPack
 include(CPack)
+
+find_package(Doxygen REQUIRED dot)
+
+if(DOXYGEN_FOUND)
+    # Можно использовать шаблон Doxyfile.in для динамической подстановки путей
+    set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
+    set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+
+    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+
+    add_custom_target(doc_doxygen ALL
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Генерация API документации через Doxygen"
+        VERBATIM )
+endif()
