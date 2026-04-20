@@ -28,7 +28,7 @@ EOF
 
 systemctl daemon-reload
 
-echo "Добавляем D-Bus policy (разрешаем calculator владеть именем на system bus)"
+echo "Добавляем D-Bus policy"
 mkdir -p /etc/dbus-1/system.d
 cat > "$POLICY_PATH" <<EOF
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"

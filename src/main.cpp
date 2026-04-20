@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "app.h"
 
 #define SERVICE_NAME      "com.example.CalculatorService"
@@ -95,7 +96,45 @@ busctl -- call com.example.CalculatorService \
                    Calculate \
                    s "1 + 4"
 */
-int main(void) {
+
+void print_help(const char* program_name) {
+    printf("Usage: %s\n", program_name);
+    printf("\n");
+    printf("Options:\n");
+    printf("  -h, --help     Show this help message and exit\n");
+    printf("\n");
+    printf("Run: %s\n", program_name);
+    printf("In other terminal run:\n");
+    printf("  busctl call com.example.CalculatorService \\\n");
+    printf("             /com/example/CalculatorObject \\\n");
+    printf("             com.example.CalculatorInterface \\\n");
+    printf("             Calculate \\\n");
+    printf("             s \"1 + 4\"\n");
+}
+
+int main(int argc, char** argv) {
+    // Parse command line arguments
+    int opt;
+    int option_index = 0;
+    static struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {0, 0, 0, 0}
+    };
+
+    while ((opt = getopt_long(argc, argv, "h", long_options, &option_index)) != -1) {
+        switch (opt) {
+            case 'h':
+                print_help(argv[0]);
+                return EXIT_SUCCESS;
+            case '?':
+                // Unknown option or missing argument
+                fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+                return EXIT_FAILURE;
+            default:
+                break;
+        }
+    }
+
     DBusError err;
     dbus_error_init(&err);
 
