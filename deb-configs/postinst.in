@@ -15,6 +15,7 @@ Requires=dbus.service
 
 [Service]
 Type=dbus
+BusName=$SERVICE_NAME
 User=@PROJECT_NAME@
 Group=@PROJECT_NAME@
 ExecStart=@CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
@@ -36,11 +37,11 @@ cat > "$POLICY_PATH" <<EOF
 <busconfig>
 
   <policy user="calculator">
-    <allow own="${SERVICE_NAME}"/>
+    <allow own="$SERVICE_NAME"/>
   </policy>
 
   <policy context="default">
-    <allow send_destination="${SERVICE_NAME}"/>
+    <allow send_destination="$SERVICE_NAME"/>
   </policy>
 
 </busconfig>
