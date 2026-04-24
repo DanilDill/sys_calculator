@@ -49,18 +49,22 @@ set(PROJECT_DESCRIPTION "System Calculator Service")
 # Configure Debian package control scripts with proper variables
 
 set(PRE_INST_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/preinst)
-configure_file(deb-configs/preinst.in ${PRE_INST_SCRIPT})
+file(COPY deb-configs/preinst DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(POST_INST_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/postinst)
-configure_file(deb-configs/postinst.in ${POST_INST_SCRIPT})
+file(COPY deb-configs/postinst DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(PRE_REM_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/prerm)
-configure_file(deb-configs/prerm.in ${PRE_REM_SCRIPT})
+file(COPY deb-configs/prerm DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CONF_FILE} ${PRE_INST_SCRIPT} ${POST_INST_SCRIPT} ${PRE_REM_SCRIPT})
 
 install(TARGETS calculator
     RUNTIME DESTINATION /usr/local/bin
+)
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/etc/
+  DESTINATION /etc
 )
 
 add_custom_target(package_calculator

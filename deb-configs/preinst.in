@@ -1,5 +1,0 @@
-#!/bin/bash
-echo 'Останавливаем ${PROJECT_NAME}'
-if systemctl is-active --quiet ${PROJECT_NAME}; then
-	systemctl stop ${PROJECT_NAME}
-fi

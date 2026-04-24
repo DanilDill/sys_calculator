@@ -1,0 +1,8 @@
+#!/bin/bash
+echo 'Останавливаем calculator'
+if systemctl is-active --quiet calculator; then
+        systemctl stop calculator
+fi
+
+# Also disable the service
+systemctl disable calculator

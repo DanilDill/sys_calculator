@@ -1,0 +1,17 @@
+[Unit]
+Description=System Calculator Service
+After=dbus.service
+Requires=dbus.service
+
+[Service]
+Type=dbus
+BusName=com.example.CalculatorService
+User=calculator
+Group=calculator
+ExecStart=/usr/local/bin/calculator
+Restart=always
+RestartSec=3s
+WorkingDirectory=/usr/local/bin
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+[Install]
+WantedBy=multi-user.target

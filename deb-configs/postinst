@@ -1,0 +1,31 @@
+#!/bin/bash
+
+systemctl daemon-reload
+
+echo "Создаём пользователя и группу calculator (если ещё не существуют)"
+if ! getent group calculator >/dev/null; then
+  groupadd -f  calculator
+fi
+
+if ! id -u calculator >/dev/null 2>&1; then
+  useradd -m -k /dev/null -g calculator calculator
+fi
+
+echo 'Устанавливаем права на файлы'
+chown -R calculator:calculator /usr/local/bin/calculator
+chmod 755 /usr/local/bin/calculator
+
+echo "Перечитываем конфигурации systemd"
+systemctl daemon-reload
+
+echo "Перезапускаем системный D-Bus для применения policy"
+systemctl restart dbus.service
+
+echo 'Запускаем calculator'
+systemctl enable calculator
+systemctl start calculator
+
+sleep 1
+
+echo 'Состояние сервиса calculator'
+systemctl --no-pager status calculator
