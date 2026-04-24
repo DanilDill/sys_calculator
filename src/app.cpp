@@ -55,10 +55,10 @@ void calculate(Task& task)
 	switch(task.operation)
 	{
 		case '+':
-			task.result = math::add(task.value1, task.value2);
+			task.result = math::add(task.value1, task.value2, task.status);
 			break;
 		case '-':
-			task.result = math::sub(task.value1, task.value2);
+			task.result = math::sub(task.value1, task.value2,task.status);
 			break;
 		case '*':
 			task.result = math::mul(task.value1, task.value2,task.status);
@@ -71,9 +71,6 @@ void calculate(Task& task)
 			break;
         case '!':
             task.result = math::factorial(task.value1, task.status); 
-            break;
-        case '%':
-            task.result = math::mod(task.value1, task.value2, task.status);
             break;
 		default:
 			task.status = 1;
