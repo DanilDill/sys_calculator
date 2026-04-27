@@ -1,92 +1,11 @@
-// #include <dbus-1.0/dbus/dbus.h>
-// #include "app.h"
-// int main(int argc, char** argv)
-// {
-//   app::run(argc, argv);
-// }
-#include <dbus/dbus.h>
+
+#include "dbus.hpp"
+
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include "app.h"
-
-#define SERVICE_NAME      "com.example.CalculatorService"
-#define OBJECT_PATH       "/com/example/CalculatorObject"
-#define INTERFACE_NAME    "com.example.CalculatorInterface"
-#define METHOD_NAME      "Calculate"
-static dbus_bool_t handle_method_call(DBusConnection *conn, DBusMessage *msg) {
-    if (!dbus_message_is_method_call(msg, INTERFACE_NAME, METHOD_NAME)) {
-        return FALSE;
-    }
-
-    // Проверяем путь объекта
-    if (strcmp(dbus_message_get_path(msg), OBJECT_PATH) != 0) {
-        return FALSE;
-    }
-
-    const char *input = NULL;
-    DBusError err;
-    dbus_error_init(&err);
-
-    if (!dbus_message_get_args(msg, &err, DBUS_TYPE_STRING, &input, DBUS_TYPE_INVALID)) {
-        fprintf(stderr, "Failed to get argument: %s\n", err.message);
-        dbus_error_free(&err);
-
-        DBusMessage *reply = dbus_message_new_error(msg, DBUS_ERROR_INVALID_ARGS, "Expected a string argument");
-        if (reply) {
-            dbus_connection_send(conn, reply, NULL);
-            dbus_message_unref(reply);
-        }
-        return TRUE; // ошибка обработана
-    }
-
-    if (input == NULL) {
-        input = "0"; // Default to 0 if no input
-    }
-
-    // Call calculator directly with the input string
-    char* result = app::run(input);
-
-    DBusMessage *reply = dbus_message_new_method_return(msg);
-    if (!reply) {
-        if (result) {
-            free(result); // Free calculator result if reply creation failed
-        }
-        fprintf(stderr, "Failed to create reply message\n");
-        return FALSE;
-    }
-
-    const char* greeting_cstr = result ? result : "Error: Calculator returned null";
-    
-    if (!dbus_message_append_args(reply, DBUS_TYPE_STRING, &greeting_cstr, DBUS_TYPE_INVALID)) {
-        fprintf(stderr, "Failed to append reply args\n");
-        if (result) {
-            free(result);
-        }
-        dbus_message_unref(reply);
-        return FALSE;
-    }
-
-    if (!dbus_connection_send(conn, reply, NULL)) {
-        fprintf(stderr, "Failed to send reply\n");
-        if (result) {
-            free(result);
-        }
-        dbus_message_unref(reply);
-        return FALSE;
-    }
-
-    // Free calculator result after successful send
-    if (result) {
-        free(result);
-    }
-
-    dbus_connection_flush(conn);
-    dbus_message_unref(reply);
-    return TRUE;
-}
 
 /*
 Example usage:
@@ -97,7 +16,8 @@ busctl -- call com.example.CalculatorService \
                    s "1 + 4"
 */
 
-void print_help(const char* program_name) {
+void print_help(const char* program_name)
+{
     printf("Usage: %s\n", program_name);
     printf("\n");
     printf("Options:\n");
@@ -112,89 +32,51 @@ void print_help(const char* program_name) {
     printf("             s \"1 + 4\"\n");
 }
 
-int main(int argc, char** argv) {
-    // Parse command line arguments
+bool parce_cli_args(int argc, char** argv)
+{
     int opt;
     int option_index = 0;
-    static struct option long_options[] = {
-        {"help", no_argument, 0, 'h'},
-        {0, 0, 0, 0}
-    };
-
-    while ((opt = getopt_long(argc, argv, "h", long_options, &option_index)) != -1) {
-        switch (opt) {
+    static struct option long_options[] = {{"help", no_argument, 0, 'h'},
+                                           {0, 0, 0, 0}};
+    bool is_run = true;
+    while ((opt = getopt_long(argc, argv, "h", long_options, &option_index)) !=
+           -1)
+    {
+        switch (opt)
+        {
             case 'h':
                 print_help(argv[0]);
-                return EXIT_SUCCESS;
+                is_run = false;
+                break;
             case '?':
-                // Unknown option or missing argument
-                fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-                return EXIT_FAILURE;
+                fprintf(stderr, "Try '%s --help' for more information.\n",
+                        argv[0]);
+                is_run = false;
+                break;
             default:
                 break;
         }
     }
+    return is_run;
+}
 
-    DBusError err;
-    dbus_error_init(&err);
-
-    DBusConnection *conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
-    if (dbus_error_is_set(&err)) {
-        fprintf(stderr, "Cannot connect to session bus: %s\n", err.message);
-        dbus_error_free(&err);
+int application_run(int argc, char** argv)
+{
+    if (!parce_cli_args(argc, argv))
+    {
         return EXIT_FAILURE;
     }
-
-    if (!conn) {
-        fprintf(stderr, "Failed to get D-Bus connection\n");
+    auto* conn = dbus::init();
+    if (conn == nullptr)
+    {
         return EXIT_FAILURE;
     }
+    dbus::start_event_loop(conn);
+    dbus::deinit(conn);
 
-    int ret = dbus_bus_request_name(conn, SERVICE_NAME, DBUS_NAME_FLAG_DO_NOT_QUEUE, &err);
-    if (dbus_error_is_set(&err)) {
-        fprintf(stderr, "Cannot acquire service name: %s\n", err.message);
-        dbus_error_free(&err);
-        dbus_connection_unref(conn);
-        return EXIT_FAILURE;
-    }
-
-    if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER) {
-        fprintf(stderr, "Name already taken or not primary owner (code %d)\n", ret);
-        dbus_connection_unref(conn);
-        return EXIT_FAILURE;
-    }
-
-    printf("✅ Service '%s' is running on session bus.\n", SERVICE_NAME);
-    printf("Object: %s\n", OBJECT_PATH);
-    printf("Interface: %s\n", INTERFACE_NAME);
-    printf("Method: Calculate(string) -> string\n");
-    printf("\nTry in another terminal:\n");
-    printf("  busctl  call %s %s %s %s  s \"5 + 5\"\n\n", 
-           SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME,METHOD_NAME);
-
-    while (1) {
-        // Ждём до 100 мс новых сообщений
-        dbus_connection_read_write_dispatch(conn, 100);
-
-        DBusMessage *msg = dbus_connection_pop_message(conn);
-        while (msg != NULL) {
-            if (dbus_message_get_type(msg) == DBUS_MESSAGE_TYPE_METHOD_CALL) {
-                if (!handle_method_call(conn, msg)) {
-                    // Неизвестный метод — отправим ошибку
-                    DBusMessage *error_reply = dbus_message_new_error(
-                        msg, DBUS_ERROR_UNKNOWN_METHOD, "Method not found or wrong object path");
-                    if (error_reply) {
-                        dbus_connection_send(conn, error_reply, NULL);
-                        dbus_message_unref(error_reply);
-                    }
-                }
-            }
-            dbus_message_unref(msg);
-            msg = dbus_connection_pop_message(conn);
-        }
-    }
-
-    dbus_connection_close(conn);
-    dbus_connection_unref(conn);
     return EXIT_SUCCESS;
+}
+int main(int argc, char** argv)
+{
+    return application_run(argc, argv);
 }

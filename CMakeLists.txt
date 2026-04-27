@@ -4,8 +4,63 @@ project(calculator LANGUAGES CXX)
 
 set(CMAKE_INSTALL_PREFIX "/usr/local")
 
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(DBUS REQUIRED dbus-1)
+set(DBUS_FLAGS "")
+foreach(dir ${DBUS_INCLUDE_DIRS})
+    list(APPEND DBUS_FLAGS "-I${dir}")
+endforeach()
+
+# Настройка clang-tidy
+option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis" OFF)
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+    if(CLANG_TIDY_EXE)
+        set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_EXE})
+        
+        # Получаем список всех исходных файлов C++ в проекте
+        file(GLOB_RECURSE ALL_SOURCE_FILES 
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp 
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+        )
+        
+        # Создаем пользовательскую цель для статического анализа
+        add_custom_target(tidy
+            COMMAND ${CLANG_TIDY_EXE} -p ${CMAKE_BINARY_DIR} ${ALL_SOURCE_FILES} -- ${DBUS_FLAGS}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Running clang-tidy static analysis"
+            VERBATIM
+        )
+    else()
+        message(WARNING "clang-tidy not found, disabling ENABLE_CLANG_TIDY")
+        set(ENABLE_CLANG_TIDY OFF)
+    endif()
+endif()
+
+# Настройка clang-format
+option(ENABLE_CLANG_FORMAT "Enable clang-format code formatting target" ON)
+if(ENABLE_CLANG_FORMAT)
+    find_program(CLANG_FORMAT_EXE NAMES clang-format)
+    if(CLANG_FORMAT_EXE)
+        # Получаем список всех исходных файлов C++ в проекте
+        file(GLOB_RECURSE ALL_SOURCE_FILES 
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp 
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+        )
+        
+        # Создаем пользовательскую цель для форматирования
+        add_custom_target(format
+            COMMAND ${CLANG_FORMAT_EXE} -i ${ALL_SOURCE_FILES}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Formatting source code with clang-format"
+            VERBATIM
+        )
+    else()
+        message(WARNING "clang-format not found, 'format' target will not be available")
+        set(ENABLE_CLANG_FORMAT OFF)
+    endif()
+endif()
 
 include(FetchContent)
 
@@ -18,9 +73,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(libmath)
 
 add_executable(calculator
-    src/app.cpp
+    src/calculator.hpp
+    src/calculator.cpp
     src/main.cpp
     src/args_parser.cpp
+    src/dbus.hpp
+    src/dbus.cpp
+    src/task.hpp
+    src/task.cpp
 )
 
 target_include_directories(calculator PRIVATE

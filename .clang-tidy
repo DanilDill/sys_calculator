@@ -1,0 +1,4 @@
+Checks: '
+-*,
+altera-unroll-loops,
+'
