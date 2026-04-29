@@ -1,7 +1,7 @@
 #include "dbus.hpp"
 
 #include "calculator.hpp"
-
+#include <sys/epoll.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -151,13 +151,30 @@ DBusConnection* init()
            OBJECT_PATH, INTERFACE_NAME, METHOD_NAME);
     return conn;
 }
+
 void start_event_loop(DBusConnection* conn)
 {
+    int epfd = epoll_create1(0);
+    int dbus_fd;
+
+     // Получаем файловый дескриптор соединения
+    if (!dbus_connection_get_unix_fd(conn, &dbus_fd)) {
+        // Ошибка: не удалось получить FD
+        return;
+    }
+
+    struct epoll_event ev, events[1];
+    ev.events = EPOLLIN; // Ждем данных на чтение
+    ev.data.fd = dbus_fd;
+    epoll_ctl(epfd, EPOLL_CTL_ADD, dbus_fd, &ev);
+
     while (true)
     {
-        // Ждём до 100 мс новых сообщений
-        dbus_connection_read_write_dispatch(conn, 100);
-
+        int nfds = epoll_wait(epfd, events, 1, -1); // -1 значит ждать бесконечно, пока нет данных
+        if (nfds > 0) {
+            dbus_connection_read_write(conn, 0);
+        }
+        dbus_connection_dispatch(conn);
         DBusMessage* msg = dbus_connection_pop_message(conn);
         while (msg != nullptr)
         {
