@@ -6,7 +6,8 @@ set(CMAKE_INSTALL_PREFIX "/usr/local")
 
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(DBUS REQUIRED dbus-1)
+find_package(sdbus-c++ REQUIRED)
+find_package(nlohmann_json REQUIRED)
 set(DBUS_FLAGS "")
 foreach(dir ${DBUS_INCLUDE_DIRS})
     list(APPEND DBUS_FLAGS "-I${dir}")
@@ -77,8 +78,8 @@ add_executable(calculator
     src/calculator.cpp
     src/main.cpp
     src/args_parser.cpp
-    src/dbus.hpp
-    src/dbus.cpp
+    src/dbus_server.hpp
+    src/dbus_server.cpp
     src/task.hpp
     src/task.cpp
 )
@@ -89,7 +90,8 @@ target_include_directories(calculator PRIVATE
 target_link_libraries(calculator
     PRIVATE
         math
-        ${DBUS_LIBRARIES}
+        nlohmann_json::nlohmann_json
+        SDBusCpp::sdbus-c++
 )
 target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
 

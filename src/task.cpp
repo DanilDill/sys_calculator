@@ -8,87 +8,37 @@
 
 namespace calculator
 {
-int parse(int argc, char** argv, Task& task)
+
+void from_json(const nlohmann::json& j, Task& t)
 {
-    if (argc == 4)
+    j.at("firstValue").get_to(t.value1);
+    std::string op = j.at("operation").get<std::string>();
+    if (op.size() != 1)
     {
-        task.value1 = atoi(argv[1]);
-        task.operation = *(argv[2]);
-        task.value2 = atoi(argv[3]);
-        return 0;
+        throw std::invalid_argument("operation must be a single character");
     }
-    else if (argc == 2)
+    t.operation = op[0];
+    t.value2 = 0;
+    if(t.operation != '!')
     {
-        char* endptr;
-        task.value1 = strtol(argv[1], &endptr, 10);
-        if (argv[1] == endptr)
-        {
-            fprintf(stderr, "Error: %s is not a number\n", argv[1]);
-            task.status = -3;
-            return -1;
-        }
-        if (*endptr == '!')
-        {
-            task.operation = '!';
-            return 0;
-        }
+        j.at("secondValue").get_to(t.value2);
     }
-
-    task.status = -3;
-    return -1;
-}
-
-Task* make_task(const char* expression, int& errcode)
-{
-    if (!expression)
+    t.result = 0;
+    t.status = 0;
+    if(t.operation =='/' && t.value2 == 0)
     {
-        errcode = 1;
-        return nullptr;
-    }
-
-    int argc;
-    char** argv = parse_arguments_c(expression, &argc);
-
-    if (!argv)
-    {
-        errcode = 2;
-        return nullptr;
-    }
-    Task* task = static_cast<Task*>(malloc(sizeof(Task)));
-    int parse_result = parse(argc, argv, *task);
-
-    // Free argument memory
-    free_arguments_c(argv, argc);
-
-    if (parse_result == 0)
-    {
-        return task;
-    }
-    else
-    {
-        errcode = 3;
-        free(task);
-        return nullptr;
+        throw std::invalid_argument("Divizion by zero");
     }
 }
-
-const char* error_to_string(int errcode)
+void to_json(nlohmann::json& j, const Task& t)
 {
-    static char* NULL_EXPRESSION = "Error! NULL expression!";
-    static char* MEM_FAILED = "Error! Memory allocation failed!";
-    static char* INVALID_INPUT = "Error! Invalid input!";
-    switch (errcode)
-    {
-        case 1:
-            return NULL_EXPRESSION;
-            break;
-        case 2:
-            return MEM_FAILED;
-            break;
-        case 3:
-            return INVALID_INPUT;
-            break;
-    }
+    j = nlohmann::json{
+        {"firstValue",  t.value1},
+        {"operation",   std::string(1, t.operation)}, // char -> string
+        {"secondValue", t.value2},
+        {"result",      t.result},
+        {"status",      (t.status == 0) ? "success" : "error"}
+    };
 }
 
 } // namespace calculator

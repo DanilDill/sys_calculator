@@ -1,12 +1,12 @@
 
-#include "dbus.hpp"
+#include "dbus_server.hpp"
 
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <iostream>
 /*
 Example usage:
 busctl -- call com.example.CalculatorService \
@@ -66,15 +66,27 @@ int application_run(int argc, char** argv)
     {
         return EXIT_FAILURE;
     }
-    auto* conn = dbus::init();
-    if (conn == nullptr)
+    // auto* conn = dbus::init();
+    // if (conn == nullptr)
+    // {
+    //     return EXIT_FAILURE;
+    // }
+    // dbus::start_event_loop(conn);
+    // dbus::deinit(conn);
+
+    try
     {
+        DBusServer server;
+        server.run();
+    }
+    catch (const sdbus::Error& e)
+    {
+        std::cerr << "D-Bus error: " << e.getName()
+                  << " — " << e.getMessage() << "\n";
         return EXIT_FAILURE;
     }
-    dbus::start_event_loop(conn);
-    dbus::deinit(conn);
+    return EXIT_SUCCESS;    
 
-    return EXIT_SUCCESS;
 }
 int main(int argc, char** argv)
 {
