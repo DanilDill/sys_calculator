@@ -1,7 +1,6 @@
 
 #include "task.hpp"
 
-#include "args_parser.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -24,21 +23,40 @@ void from_json(const nlohmann::json& j, Task& t)
         j.at("secondValue").get_to(t.value2);
     }
     t.result = 0;
-    t.status = 0;
-    if(t.operation =='/' && t.value2 == 0)
-    {
-        throw std::invalid_argument("Divizion by zero");
-    }
+    t.status = Task::Status::OK;
 }
 void to_json(nlohmann::json& j, const Task& t)
 {
     j = nlohmann::json{
         {"firstValue",  t.value1},
-        {"operation",   std::string(1, t.operation)}, // char -> string
+        {"operation",   std::string(1, t.operation)},
         {"secondValue", t.value2},
-        {"result",      t.result},
-        {"status",      (t.status == 0) ? "success" : "error"}
+        {"status",      Task::to_string(t.status)}
     };
+    if(t.status == Task::Status::OK)
+    {
+        j["result"] = t.result;
+    }
+}
+
+std::string Task::to_string(Task::Status status)
+{
+    using Status = Task::Status;
+    switch (status)
+    {
+        case Status::OK:
+            return "success";
+        case Status::DIV_BY_ZERO:
+            return "Error! Division by zero!";
+        case Status::OVERFLOW:
+            return "Error! Overflow!";
+        case Status::UNKNOWN:
+            return "UNKNOWN STATUS";
+        case Status::INCORRECT_ARGUMENTS:
+            return "Error! Incorrect arguments!";
+        default:
+            return "Error! Unknown error!"; 
+    }
 }
 
 } // namespace calculator

@@ -77,11 +77,12 @@ add_executable(calculator
     src/calculator.hpp
     src/calculator.cpp
     src/main.cpp
-    src/args_parser.cpp
     src/dbus_server.hpp
     src/dbus_server.cpp
     src/task.hpp
     src/task.cpp
+    src/app.hpp
+    src/app.cpp
 )
 
 target_include_directories(calculator PRIVATE

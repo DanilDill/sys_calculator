@@ -23,7 +23,7 @@ struct Impl
         try
         {
             auto task = nlohmann::json::parse(input).get<calculator::Task>();
-            calculator::run(&task);
+            calculator::Calculator::execute(task);
             nlohmann::json responce = task;
             return responce.dump();
         }
@@ -33,13 +33,6 @@ struct Impl
             err["status"]  = "error";
             err["message"] = e.what();
             return err.dump();
-        }
-        catch (const std::exception& e)
-        {
-            nlohmann::json err;
-            err["status"]  = "error";
-            err["message"] = e.what();
-            return err.dump(4);
         }
         
     };
