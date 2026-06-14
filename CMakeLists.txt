@@ -141,6 +141,9 @@ add_custom_target(package_calculator
 # Enable CPack
 include(CPack)
 
+# Подключаем тесты
+add_subdirectory(tests)
+
 find_package(Doxygen REQUIRED dot)
 
 if(DOXYGEN_FOUND)
