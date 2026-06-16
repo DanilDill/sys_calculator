@@ -73,14 +73,32 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(libmath)
 
-add_executable(calculator
+# Создаем статическую библиотеку с логикой калькулятора
+add_library(calculator_logic STATIC
     src/calculator.hpp
     src/calculator.cpp
+    src/task.hpp
+    src/task.cpp
+)
+
+target_include_directories(calculator_logic PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${DBUS_INCLUDE_DIRS}
+)
+
+target_link_libraries(calculator_logic
+    PRIVATE
+        math
+        nlohmann_json::nlohmann_json
+)
+
+target_compile_options(calculator_logic PRIVATE ${DBUS_CFLAGS_OTHER})
+
+# Основное исполняемое приложение использует библиотеку
+add_executable(calculator
     src/main.cpp
     src/dbus_server.hpp
     src/dbus_server.cpp
-    src/task.hpp
-    src/task.cpp
     src/app.hpp
     src/app.cpp
 )
@@ -88,12 +106,13 @@ add_executable(calculator
 target_include_directories(calculator PRIVATE
     ${DBUS_INCLUDE_DIRS}
 )
+
 target_link_libraries(calculator
     PRIVATE
-        math
-        nlohmann_json::nlohmann_json
+        calculator_logic
         SDBusCpp::sdbus-c++
 )
+
 target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
 
 

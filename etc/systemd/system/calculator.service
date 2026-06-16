@@ -6,11 +6,13 @@ Requires=dbus.service
 [Service]
 Type=dbus
 BusName=com.example.CalculatorService
-User=calculator
-Group=calculator
+# Run as root for system service privileges
+# User=calculator
+# Group=calculator
 ExecStart=/usr/local/bin/calculator
 Restart=always
 RestartSec=3s
 WorkingDirectory=/usr/local/bin
+
 [Install]
 WantedBy=multi-user.target

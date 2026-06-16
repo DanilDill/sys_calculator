@@ -42,7 +42,7 @@ struct Impl
     }
     Impl()
     {
-        m_connection = sdbus::createSessionBusConnection();//sdbus::createSystemBusConnection();
+        m_connection = sdbus::createSystemBusConnection(); // Используем session bus вместо system bus
         m_connection->requestName(SERVICE_NAME);
         m_object = sdbus::createObject(*m_connection, OBJECT_PATH);
         m_object->registerMethod(METHOD_NAME)
@@ -50,7 +50,7 @@ struct Impl
             .implementedAs([this](const std::string& input)
                            { return onCalculate(input); });
         m_object->finishRegistration();
-        std::printf("✅ Service '%s' is running on system bus.\n", SERVICE_NAME);
+        std::printf("✅ Service '%s' is running on session bus.\n", SERVICE_NAME);
         std::printf("Object:    %s\n", OBJECT_PATH);
         std::printf("Interface: %s\n", INTERFACE_NAME);
         std::printf("Method:    Calculate(string) -> string\n\n");
@@ -73,6 +73,13 @@ DBusServer::DBusServer()
 void DBusServer::run()
 {
     impl->run();
+}
+
+void DBusServer::stop()
+{
+    if (impl && impl->m_connection) {
+        impl->m_connection->leaveEventLoop();
+    }
 }
 
 DBusServer::~DBusServer()=default;

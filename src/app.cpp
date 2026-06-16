@@ -52,15 +52,15 @@ void app::print_help(std::string_view program_name)
 
 void app::run()
 {
-    if (m_is_run)
+    if (!m_is_run)
     {
         return;
     }
     
     try
     {
-        DBusServer server;
-        server.run();
+        m_server = std::make_unique<DBusServer>();
+        m_server->run();
     }
     catch (const sdbus::Error& e)
     {
@@ -73,5 +73,7 @@ void app::run()
 
 void app::stop()
 {
-
+    if (m_server) {
+        m_server->stop();
+    }
 }

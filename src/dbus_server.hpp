@@ -16,9 +16,9 @@ public:
     ~DBusServer();
     /// @brief start server;
     void run();
+    /// @brief stop server gracefully
+    void stop();
 private:
 /// @brief implementation
 std::unique_ptr<Impl> impl;
 };
-
-
