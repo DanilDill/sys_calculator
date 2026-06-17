@@ -11,28 +11,22 @@ protected:
     void SetUp() override {
         int argc = 1;
         char* argv[] = {const_cast<char*>("calculator_test"), nullptr};
-        test_app = std::make_unique<app>(argc, argv);
+        //test_app = std::make_unique<app>(argc, argv);
         
-        server_thread = std::thread([this]() {
-            test_app->run();
-        });
-        
+        server = std::make_unique<DBusServer>();
+        server->run();
         // Даем время серверу запуститься
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     void TearDown() override {
-        if (test_app) {
-            test_app->stop();
+        if (server) {
+            server->stop();
         }
         
-        if (server_thread.joinable()) {
-            server_thread.join();
-        }
     }
 
-    std::unique_ptr<app> test_app;
-    std::thread server_thread;
+    std::unique_ptr<DBusServer> server;
 };
 
 TEST_F(IntegrationTest, AdditionOperation) {
