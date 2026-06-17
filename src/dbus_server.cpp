@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "nlohmann/json.hpp"
+#include "logger.hpp"
 namespace
 {
 constexpr const char* SERVICE_NAME = "com.example.CalculatorService";
@@ -22,9 +23,11 @@ struct Impl
     {
         try
         {
+            Logger::instance().debug("request: " + input + "\n");
             auto task = nlohmann::json::parse(input).get<calculator::Task>();
             calculator::Calculator::execute(task);
             nlohmann::json responce = task;
+            Logger::instance().debug("responce: " + responce.dump() + "\n");
             return responce.dump();
         }
         catch (const nlohmann::json::exception& e)
@@ -32,13 +35,14 @@ struct Impl
             nlohmann::json err;
             err["status"]  = "error";
             err["message"] = e.what();
+            Logger::instance().error(e.what());
             return err.dump();
         }
         
     };
     void run()
     {
-        m_connection->enterEventLoop();
+        m_connection->enterEventLoopAsync();
     }
     Impl()
     {
@@ -50,14 +54,16 @@ struct Impl
             .implementedAs([this](const std::string& input)
                            { return onCalculate(input); });
         m_object->finishRegistration();
-        std::printf("✅ Service '%s' is running on session bus.\n", SERVICE_NAME);
-        std::printf("Object:    %s\n", OBJECT_PATH);
-        std::printf("Interface: %s\n", INTERFACE_NAME);
-        std::printf("Method:    Calculate(string) -> string\n\n");
-        std::printf("Try in another terminal:\n");
-        std::printf("  busctl --user call %s %s %s Calculate "
-            "s '{\"firstValue\": 5, \"operation\": \"+\", \"secondValue\": 3}'\n\n",
-            SERVICE_NAME, OBJECT_PATH, INTERFACE_NAME);
+        std::stringstream ss;
+        ss << " Service '" << SERVICE_NAME <<  "is running on session bus.\n";
+        ss << "Object: " << OBJECT_PATH;
+        ss <<"Interface: " << INTERFACE_NAME;
+        ss << "Method:    Calculate(string) -> string\n\n";
+        ss << "Try in another terminal:\n";
+        ss << "  busctl  call " << SERVICE_NAME << " " << OBJECT_PATH <<" " << INTERFACE_NAME<< " Calculate ";
+        ss <<  "s '{\"firstValue\": 5, \"operation\": \"+\", \"secondValue\": 3}'\n\n";
+        Logger::instance().info(ss.str());
+            
         
     };
 
@@ -72,7 +78,11 @@ DBusServer::DBusServer()
 
 void DBusServer::run()
 {
-    impl->run();
+    if (impl && impl->m_connection)
+    {
+        impl->run();
+    }
+    
 }
 
 void DBusServer::stop()
