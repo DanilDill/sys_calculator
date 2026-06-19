@@ -14,7 +14,7 @@ protected:
         //test_app = std::make_unique<app>(argc, argv);
         
         server = std::make_unique<DBusServer>();
-        server->run();
+        server->async_run();
         // Даем время серверу запуститься
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
