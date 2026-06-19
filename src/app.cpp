@@ -7,13 +7,14 @@
 #include <sys/epoll.h>
 #include <signal.h>
 
+namespace calculator
+{
 struct app::Impl
 {
     std::unique_ptr<DBusServer> m_server{nullptr};
     bool m_is_run{false};
     bool m_is_debug{false};
     inline static int m_pipe[2]{};
-    static std::unordered_map<int, std::function<void(int)>> msignal_handlers;
     static void onSignal(int signum)
     {
         unsigned char byte = static_cast<unsigned char>(signum);
@@ -128,3 +129,5 @@ void app::stop()
         m_impl->m_server->stop();
     }
 }
+}
+

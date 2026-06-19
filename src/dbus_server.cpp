@@ -15,7 +15,9 @@ constexpr const char* INTERFACE_NAME = "com.example.CalculatorInterface";
 constexpr const char* METHOD_NAME = "Calculate";
 };
 
-struct Impl
+namespace calculator
+{
+    struct DBusServer::Impl
 {
     std::unique_ptr<sdbus::IConnection> m_connection;
     std::unique_ptr<sdbus::IObject> m_object;
@@ -104,3 +106,5 @@ void DBusServer::stop()
 }
 
 DBusServer::~DBusServer()=default;
+
+}

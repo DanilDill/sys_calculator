@@ -1,5 +1,7 @@
 #include "dbus_server.hpp"
 #include <memory>
+namespace calculator
+{
 class app
 {
 private:
@@ -15,4 +17,6 @@ private:
     bool parce_cli_args(int argc, char** argv);
     void print_help(std::string_view app_name);
 };
+
+}
 

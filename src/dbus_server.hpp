@@ -5,8 +5,9 @@
 #include <sdbus-c++/sdbus-c++.h>
 #include <memory>
 
-struct Impl;
-/// @brief server Dbus. input - task in json format, output - result in json format
+namespace calculator
+{
+    /// @brief server Dbus. input - task in json format, output - result in json format
 class DBusServer
 {
 public:
@@ -22,5 +23,8 @@ public:
     void stop();
 private:
 /// @brief implementation
+struct Impl;
 std::unique_ptr<Impl> m_impl;
 };
+
+}
