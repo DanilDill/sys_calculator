@@ -42,6 +42,10 @@ struct Impl
     };
     void run()
     {
+        m_connection->enterEventLoop();
+    }
+    void async_run()
+    {
         m_connection->enterEventLoopAsync();
     }
     Impl()
@@ -73,22 +77,29 @@ struct Impl
 
 DBusServer::DBusServer()
 {
-    impl = std::make_unique<Impl>();
+    m_impl = std::make_unique<Impl>();
 }
 
 void DBusServer::run()
 {
-    if (impl && impl->m_connection)
+    if (m_impl && m_impl->m_connection)
     {
-        impl->run();
+        m_impl->run();
     }
     
 }
 
+void DBusServer::async_run()
+{
+    if (m_impl && m_impl->m_connection)
+    {
+        m_impl->async_run();
+    }
+}
 void DBusServer::stop()
 {
-    if (impl && impl->m_connection) {
-        impl->m_connection->leaveEventLoop();
+    if (m_impl && m_impl->m_connection) {
+        m_impl->m_connection->leaveEventLoop();
     }
 }
 

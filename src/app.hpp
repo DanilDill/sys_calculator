@@ -3,12 +3,11 @@
 class app
 {
 private:
-    std::unique_ptr<DBusServer> m_server{nullptr};
-    bool m_is_run{false};
-    bool m_is_debug{false};
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
 public:
     app(int argc, char** argv);
-    ~app()=default;
+    ~app();
     void run();
     void stop();
     
