@@ -8,12 +8,13 @@
 
 class IntegrationTest : public ::testing::Test {
 protected:
+    
     void SetUp() override {
         int argc = 1;
         char* argv[] = {const_cast<char*>("calculator_test"), nullptr};
         //test_app = std::make_unique<app>(argc, argv);
         
-        server = std::make_unique<DBusServer>();
+        server = std::make_unique<calculator::DBusServer>();
         server->async_run();
         // Даем время серверу запуститься
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -26,7 +27,7 @@ protected:
         
     }
 
-    std::unique_ptr<DBusServer> server;
+    std::unique_ptr<calculator::DBusServer> server;
 };
 
 TEST_F(IntegrationTest, AdditionOperation) {
