@@ -1,6 +1,6 @@
 #include "dbus_server.hpp"
 
-#include "calculator.hpp"
+
 #include <sys/epoll.h>
 #include <cstdio>
 #include <cstdlib>
@@ -21,27 +21,6 @@ namespace calculator
 {
     std::unique_ptr<sdbus::IConnection> m_connection;
     std::unique_ptr<sdbus::IObject> m_object;
-    std::string onCalculate(const std::string& input)
-    {
-        try
-        {
-            Logger::instance().debug("request: " + input + "\n");
-            auto task = nlohmann::json::parse(input).get<calculator::Task>();
-            calculator::Calculator::execute(task);
-            nlohmann::json responce = task;
-            Logger::instance().debug("responce: " + responce.dump() + "\n");
-            return responce.dump();
-        }
-        catch (const nlohmann::json::exception& e)
-        {
-            nlohmann::json err;
-            err["status"]  = "error";
-            err["message"] = e.what();
-            Logger::instance().error(e.what());
-            return err.dump();
-        }
-        
-    };
     void run()
     {
         m_connection->enterEventLoop();
@@ -50,15 +29,14 @@ namespace calculator
     {
         m_connection->enterEventLoopAsync();
     }
-    Impl()
+    Impl(std::function<std::string(const std::string&)>&& handler)
     {
         m_connection = sdbus::createSystemBusConnection(); // Используем session bus вместо system bus
         m_connection->requestName(SERVICE_NAME);
         m_object = sdbus::createObject(*m_connection, OBJECT_PATH);
         m_object->registerMethod(METHOD_NAME)
             .onInterface(INTERFACE_NAME)
-            .implementedAs([this](const std::string& input)
-                           { return onCalculate(input); });
+            .implementedAs(handler);
         m_object->finishRegistration();
         std::stringstream ss;
         ss << " Service '" << SERVICE_NAME <<  "is running on session bus.\n";
@@ -77,9 +55,9 @@ namespace calculator
 };
 
 
-DBusServer::DBusServer()
+DBusServer::DBusServer(std::function<std::string(const std::string&)>&& handler)
 {
-    m_impl = std::make_unique<Impl>();
+    m_impl = std::make_unique<Impl>(std::forward<std::function<std::string(const std::string&)>>(handler));
 }
 
 void DBusServer::run()

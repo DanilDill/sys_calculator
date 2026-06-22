@@ -1,8 +1,16 @@
 
 #include "app.hpp"
-
+#include <logger.hpp>
 int main(int argc, char** argv)
 {
-    calculator::app(argc,argv).run();
-    return 0;
+    try
+    {
+        calculator::app(argc,argv).run();
+        return 0;
+    }
+    catch(const std::exception& e)
+    {
+        Logger::instance().error(e.what());
+    }
+    
 }

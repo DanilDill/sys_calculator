@@ -10,6 +10,10 @@ private:
 public:
     app(int argc, char** argv);
     ~app();
+    app(app&&) = delete;
+    app(const app&) = delete;
+    app& operator=(const app&) = delete;
+    app& operator=(app&& other) noexcept = delete;
     void run();
     void stop();
     

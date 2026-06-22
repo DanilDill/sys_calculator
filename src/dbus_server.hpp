@@ -4,7 +4,7 @@
 
 #include <sdbus-c++/sdbus-c++.h>
 #include <memory>
-
+#include <functional>
 namespace calculator
 {
     /// @brief server Dbus. input - task in json format, output - result in json format
@@ -12,7 +12,7 @@ class DBusServer
 {
 public:
     /// @brief constructor
-    DBusServer();
+    DBusServer(std::function<std::string(const std::string&)>&&);
     ///destructor
     ~DBusServer();
     /// @brief start server;

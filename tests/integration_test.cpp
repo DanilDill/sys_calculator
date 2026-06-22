@@ -3,7 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <memory>
-
+#include <calculator.hpp>
 #include "../src/app.hpp"
 
 class IntegrationTest : public ::testing::Test {
@@ -13,8 +13,24 @@ protected:
         int argc = 1;
         char* argv[] = {const_cast<char*>("calculator_test"), nullptr};
         //test_app = std::make_unique<app>(argc, argv);
-        
-        server = std::make_unique<calculator::DBusServer>();
+        auto&& onCalculate = [](const std::string& input)
+        {
+            try
+            {
+                auto task = nlohmann::json::parse(input).get<calculator::Task>();
+                calculator::Calculator::execute(task);
+                nlohmann::json responce = task;
+                return responce.dump();
+            }
+            catch (const nlohmann::json::exception& e)
+            {
+                nlohmann::json err;
+                err["status"]  = "error";
+                err["message"] = e.what();
+                return err.dump();
+            }
+        };
+        server = std::make_unique<calculator::DBusServer>(onCalculate);
         server->async_run();
         // Даем время серверу запуститься
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
