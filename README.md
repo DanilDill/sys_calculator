@@ -1,4 +1,13 @@
 # sys_calculator
+build: 
+```
+sudo apt install libsdbus-c++-dev libhiredis-dev libspdlog-dev
+
+git clone https://github.com/sewenew/redis-plus-plus.git
+cd redis-plus-plus && mkdir build && cd build
+cmake ..
+make && sudo make install
+```
 Usage: ./calculator 
 
 Options:
