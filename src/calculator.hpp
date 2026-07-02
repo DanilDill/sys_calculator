@@ -1,8 +1,11 @@
 #pragma once
-
+#include "task.hpp"
 namespace calculator
 {
-struct Task;
-char* output(Task* task);
-void run(Task* task);
+class Calculator
+{
+public:
+    static void execute(Task& task);
+};
+
 } // namespace calculator

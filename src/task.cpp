@@ -1,93 +1,61 @@
 
 #include "task.hpp"
 
-#include "args_parser.hpp"
 
 #include <cstdio>
 #include <cstdlib>
 
 namespace calculator
 {
-int parse(int argc, char** argv, Task& task)
-{
-    if (argc == 4)
-    {
-        task.value1 = atoi(argv[1]);
-        task.operation = *(argv[2]);
-        task.value2 = atoi(argv[3]);
-        return 0;
-    }
-    else if (argc == 2)
-    {
-        char* endptr;
-        task.value1 = strtol(argv[1], &endptr, 10);
-        if (argv[1] == endptr)
-        {
-            fprintf(stderr, "Error: %s is not a number\n", argv[1]);
-            task.status = -3;
-            return -1;
-        }
-        if (*endptr == '!')
-        {
-            task.operation = '!';
-            return 0;
-        }
-    }
 
-    task.status = -3;
-    return -1;
+void from_json(const nlohmann::json& j, Task& t)
+{
+    j.at("firstValue").get_to(t.value1);
+    std::string op = j.at("operation").get<std::string>();
+    if (op.size() != 1)
+    {
+        throw std::invalid_argument("operation must be a single character");
+    }
+    t.operation = op[0];
+    t.value2 = 0;
+    if(t.operation != '!')
+    {
+        j.at("secondValue").get_to(t.value2);
+    }
+    t.result = 0;
+    t.status = Task::Status::OK;
 }
-
-Task* make_task(const char* expression, int& errcode)
+void to_json(nlohmann::json& j, const Task& t)
 {
-    if (!expression)
+    j = nlohmann::json{
+        {"firstValue",  t.value1},
+        {"operation",   std::string(1, t.operation)},
+        {"secondValue", t.value2},
+        {"status",      Task::to_string(t.status)}
+    };
+    if(t.status == Task::Status::OK)
     {
-        errcode = 1;
-        return nullptr;
-    }
-
-    int argc;
-    char** argv = parse_arguments_c(expression, &argc);
-
-    if (!argv)
-    {
-        errcode = 2;
-        return nullptr;
-    }
-    Task* task = static_cast<Task*>(malloc(sizeof(Task)));
-    int parse_result = parse(argc, argv, *task);
-
-    // Free argument memory
-    free_arguments_c(argv, argc);
-
-    if (parse_result == 0)
-    {
-        return task;
-    }
-    else
-    {
-        errcode = 3;
-        free(task);
-        return nullptr;
+        j["result"] = t.result;
     }
 }
 
-const char* error_to_string(int errcode)
+std::string Task::to_string(Task::Status status)
 {
-    static char* NULL_EXPRESSION = "Error! NULL expression!";
-    static char* MEM_FAILED = "Error! Memory allocation failed!";
-    static char* INVALID_INPUT = "Error! Invalid input!";
-    switch (errcode)
+    using Status = Task::Status;
+    switch (status)
     {
-        case 1:
-            return NULL_EXPRESSION;
-            break;
-        case 2:
-            return MEM_FAILED;
-            break;
-        case 3:
-            return INVALID_INPUT;
-            break;
+        case Status::OK:
+            return "success";
+        case Status::DIV_BY_ZERO:
+            return "Error! Division by zero!";
+        case Status::OVERFLOW:
+            return "Error! Overflow!";
+        case Status::UNKNOWN:
+            return "UNKNOWN STATUS";
+        case Status::INCORRECT_ARGUMENTS:
+            return "Error! Incorrect arguments!";
+        default:
+            return "Error! Unknown error!"; 
     }
 }
 

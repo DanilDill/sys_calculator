@@ -6,7 +6,9 @@ set(CMAKE_INSTALL_PREFIX "/usr/local")
 
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(DBUS REQUIRED dbus-1)
+find_package(sdbus-c++ REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(spdlog REQUIRED)
 set(DBUS_FLAGS "")
 foreach(dir ${DBUS_INCLUDE_DIRS})
     list(APPEND DBUS_FLAGS "-I${dir}")
@@ -62,35 +64,61 @@ if(ENABLE_CLANG_FORMAT)
     endif()
 endif()
 
+# Подключаем libmath как внешнюю зависимость
 include(FetchContent)
-
 FetchContent_Declare(
     libmath
-    GIT_REPOSITORY git@github.com:DanilDill/libmath.git
+    GIT_REPOSITORY https://github.com/DanilDill/libmath.git
     GIT_TAG master
 )
-
 FetchContent_MakeAvailable(libmath)
 
-add_executable(calculator
+
+# Создаем статическую библиотеку с логикой калькулятора
+add_library(calculator_logic STATIC
     src/calculator.hpp
     src/calculator.cpp
-    src/main.cpp
-    src/args_parser.cpp
-    src/dbus.hpp
-    src/dbus.cpp
     src/task.hpp
     src/task.cpp
+    src/dbus_server.hpp
+    src/dbus_server.cpp
+    src/app.hpp
+    src/app.cpp
+    src/logger.hpp
+    src/logger.cpp
+)
+
+target_include_directories(calculator_logic PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${DBUS_INCLUDE_DIRS}
+)
+
+target_link_libraries(calculator_logic
+    PRIVATE
+        math
+        nlohmann_json::nlohmann_json
+        SDBusCpp::sdbus-c++
+        spdlog::spdlog
+)
+
+target_compile_options(calculator_logic PRIVATE ${DBUS_CFLAGS_OTHER})
+
+# Основное исполняемое приложение использует библиотеку
+add_executable(calculator
+    src/main.cpp
+   
 )
 
 target_include_directories(calculator PRIVATE
     ${DBUS_INCLUDE_DIRS}
 )
+
 target_link_libraries(calculator
     PRIVATE
         math
-        ${DBUS_LIBRARIES}
+        calculator_logic
 )
+
 target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
 
 
@@ -137,6 +165,9 @@ add_custom_target(package_calculator
 
 # Enable CPack
 include(CPack)
+
+# Подключаем тесты
+add_subdirectory(tests)
 
 find_package(Doxygen REQUIRED dot)
 

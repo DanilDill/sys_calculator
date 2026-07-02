@@ -1,0 +1,13 @@
+compilation_database_dir: build_linux
+output_directory: docs/diagrams
+diagrams:
+  calculator_class_diagram:
+    type: class
+    glob:
+      - src/*.cpp
+      - src/*.hpp
+    include:
+      namespaces:
+        - calculator
+    using_namespace:
+      - calculator
