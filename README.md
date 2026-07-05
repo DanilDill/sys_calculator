@@ -1,7 +1,7 @@
 # sys_calculator
 build: 
 ```
-sudo apt install libsdbus-c++-dev libhiredis-dev libspdlog-dev
+sudo apt install libsdbus-c++-dev libhiredis-dev libspdlog-dev libpq-dev postgresql postgresql-contrib
 
 git clone https://github.com/sewenew/redis-plus-plus.git
 cd redis-plus-plus && mkdir build && cd build
@@ -15,8 +15,10 @@ Options:
 
 Run: ./calculator
 In other terminal run:
-  busctl call com.example.CalculatorService \
+```
+ busctl call com.example.CalculatorService \
              /com/example/CalculatorObject \
              com.example.CalculatorInterface \
              Calculate \
-             s "1 + 4"
+              s '{"firstValue": 5, "operation": "+", "secondValue": 3}'
+```              

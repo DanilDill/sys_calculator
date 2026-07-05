@@ -7,6 +7,7 @@
 #include <sys/epoll.h>
 #include <signal.h>
 #include "calculator.hpp"
+#include "history_service.hpp"
 namespace calculator
 {
 struct app::Impl
@@ -55,10 +56,11 @@ bool app::parce_cli_args(int argc, char** argv)
 void app::print_help(std::string_view program_name)
 {
     std::stringstream ss;
-    ss << "Usage: "<< program_name << std::endl;
+    ss << "Usage: "<< program_name <<  " [-d]" << std::endl;
     ss << std::endl;
     ss << "Options:"<<std::endl;
     ss << "  -h, --help     Show this help message and exit" << std::endl;
+    ss << "  -d, --debug    Enable debug mode" << std::endl;
     ss << "\n";
     ss << "Run: "<< program_name << std::endl;
     ss << "In other terminal run:\n";
@@ -89,15 +91,18 @@ void app::run()
             perror("pthread_sigmask");
             throw std::runtime_error(fmt::format("pthread_sigmask return: {}", mask));
         }
+        auto history = std::make_shared<HistoryService>(
+        std::make_unique<storage::PostgresStorage>("host=localhost dbname=calc user=calc password=calc_password"),
+        std::make_unique<storage::RedisCache>("tcp://127.0.0.1:6379"));
 
-        auto&& onCalculate = [](const std::string& input)
+        auto&& onCalculate = [history](const std::string& input)
         {
             
             try
             {
                 Logger::instance().debug("request: " + input + "\n");
                 auto task = nlohmann::json::parse(input).get<calculator::Task>();
-                calculator::Calculator::execute(task);
+                history->process(task); //calculator::Calculator::execute(task);
                 nlohmann::json responce = task;
                 Logger::instance().debug("responce: " + responce.dump() + "\n");
                 return responce.dump();
