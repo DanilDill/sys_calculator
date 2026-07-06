@@ -17,6 +17,20 @@ void HistoryService::process(calculator::Task& task)
         Logger::instance().debug("cache hit: " + storage::RedisCache::key(task));
         return;
     }
+    else
+    {
+        if (task.operation == '+' || task.operation == '*')
+        {
+            auto other_task = task;
+            std::swap(task.value1, task.value2);
+            if (auto cached = m_cache->get(task))
+            {
+                task = *cached;
+                Logger::instance().debug("cache hit: " + storage::RedisCache::key(task));
+                return;
+            }
+        }  
+    }
     Logger::instance().debug("cache miss: " + storage::RedisCache::key(task));
     calculator::Calculator::execute(task);
     try
