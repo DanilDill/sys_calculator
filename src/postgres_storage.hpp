@@ -30,4 +30,4 @@ private:
     PGconnPtr m_conn;
 };
 
-} // namespace storage
+}
