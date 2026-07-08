@@ -26,7 +26,9 @@ public:
 private:
     PGresultPtr exec(const char* sql,
                      const std::vector<std::string>& params = {});
-
+    void ensureConnection();
+    PGresultPtr try_exec(const char* sql,
+                                     const std::vector<const char*>& values);
     PGconnPtr m_conn;
 };
 

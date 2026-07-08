@@ -5,6 +5,7 @@
 #include "task.hpp"
 #include <string_view>
 #include <charconv>
+#include "logger.hpp"
 namespace storage
 {
 
@@ -21,7 +22,7 @@ public:
         {
             std::swap(a, b);
         }
-        return fmt::format("calc:{}:{}:{}", t.value1, t.operation, t.value2);
+        return fmt::format("calc:{}:{}:{}", a, t.operation, b);
     }
 
     void clear()
