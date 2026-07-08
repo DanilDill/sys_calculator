@@ -2,7 +2,7 @@
 #include "postgres_storage.hpp"
 #include <stdexcept>
 #include <fmt/format.h>
-
+#include "logger.hpp"
 namespace storage
 {
 
@@ -16,6 +16,30 @@ PostgresStorage::PostgresStorage(const std::string& conninfo)
     }
 }
 
+PGresultPtr PostgresStorage::try_exec(const char* sql,
+                                     const std::vector<const char*>& values)
+{
+     return PGresultPtr{PQexecParams(m_conn.get(), sql,
+                                    static_cast<int>(values.size()),
+                                    nullptr, values.data(),
+                                    nullptr, nullptr, 0)};
+}
+
+void PostgresStorage::ensureConnection()
+{
+    if (PQstatus(m_conn.get()) == CONNECTION_OK)
+        return;
+
+    Logger::instance().info("postgres connection lost, resetting");
+    PQreset(m_conn.get());   // переподключение с исходными параметрами
+
+    if (PQstatus(m_conn.get()) != CONNECTION_OK)
+    {
+        throw std::runtime_error(fmt::format("postgres reconnect failed: {}",
+                                 PQerrorMessage(m_conn.get())));
+    }
+    Logger::instance().info("postgres connection restored");
+}
 PGresultPtr PostgresStorage::exec(const char* sql,
                                   const std::vector<std::string>& params)
 {
@@ -23,18 +47,27 @@ PGresultPtr PostgresStorage::exec(const char* sql,
     values.reserve(params.size());
     for (const auto& p : params) values.push_back(p.c_str());
 
-    PGresultPtr res{PQexecParams(m_conn.get(), sql,
-                                 static_cast<int>(values.size()),
-                                 nullptr, values.data(),
-                                 nullptr, nullptr, 0)};
+    ensureConnection();
+    auto res = try_exec(sql, values);
 
-    const auto st = PQresultStatus(res.get());
-    if (st != PGRES_COMMAND_OK && st != PGRES_TUPLES_OK)
+    auto ok = [](PGresult* r) {
+        const auto st = PQresultStatus(r);
+        return st == PGRES_COMMAND_OK || st == PGRES_TUPLES_OK;
+    };
+
+    if (!ok(res.get()) && PQstatus(m_conn.get()) != CONNECTION_OK)
+    {
+        Logger::instance().info("query failed due to lost connection, retrying");
+        ensureConnection();
+        res = try_exec(sql, values);
+    }
+
+    if (!ok(res.get()))
     {
         throw std::runtime_error(fmt::format("postgres query failed: {}",
                                  PQerrorMessage(m_conn.get())));
     }
-    return res; // ownership перемещается наружу
+    return res;
 }
 
 void PostgresStorage::createSchema()

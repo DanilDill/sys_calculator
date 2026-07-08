@@ -11,32 +11,29 @@ HistoryService::HistoryService(std::unique_ptr<storage::PostgresStorage> db,
 
 void HistoryService::process(calculator::Task& task)
 {
-    if (auto cached = m_cache->get(task))
+    try
     {
-        task = *cached;
+        if (auto cached = m_cache->get(task))
+    {
+        task.result = cached->result;
+        task.status = cached->status;
         Logger::instance().debug("cache hit: " + storage::RedisCache::key(task));
         return;
     }
-    else
-    {
-        if (task.operation == '+' || task.operation == '*')
-        {
-            auto other_task = task;
-            std::swap(task.value1, task.value2);
-            if (auto cached = m_cache->get(task))
-            {
-                task = *cached;
-                Logger::instance().debug("cache hit: " + storage::RedisCache::key(task));
-                return;
-            }
-        }  
-    }
+
     Logger::instance().debug("cache miss: " + storage::RedisCache::key(task));
+    
+    }
+    catch(const std::exception& e)
+    {
+        Logger::instance().error(fmt::format("cache lookup failed, "
+                                             "falling back to compute: {}", e.what()));
+    }
     calculator::Calculator::execute(task);
     try
     {
-        m_cache->put(task);
         m_db->insert(task);
+        m_cache->put(task);
     }
     catch (const std::exception& e)
     {

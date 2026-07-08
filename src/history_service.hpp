@@ -1,3 +1,5 @@
+#pragma once
+
 #include "postgres_storage.hpp"
 #include "redis_cache.hpp"
 #include "calculator.hpp"
