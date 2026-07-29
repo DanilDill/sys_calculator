@@ -1,6 +1,6 @@
 [Unit]
 Description=System Calculator Service
-After=dbus.service
+After=dbus.service network.target postgresql.service redis-server.service
 Requires=dbus.service
 
 [Service]
@@ -9,7 +9,7 @@ BusName=com.example.CalculatorService
 # Run as root for system service privileges
 # User=calculator
 # Group=calculator
-ExecStart=/usr/local/bin/calculator
+ExecStart=/usr/local/bin/calculator --config /usr/local/etc/calculator.json
 Restart=always
 RestartSec=3s
 WorkingDirectory=/usr/local/bin

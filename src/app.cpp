@@ -6,8 +6,6 @@
 
 #include <getopt.h>
 #include <signal.h>
-#include <sys/epoll.h>
-#include <sys/signalfd.h>
 
 #include <iostream>
 #include <sstream>
@@ -15,26 +13,29 @@ namespace calculator
 {
 struct app::Impl
 {
-    std::unique_ptr<DBusServer> m_server{nullptr};
+    std::unique_ptr<DBusServer> m_dbus_server{nullptr};
+    std::unique_ptr<TCPServer> m_tcp_server{nullptr};
     bool m_is_run{false};
-    bool m_is_debug{false};
+    Config m_config;
+    std::string m_config_path{"/usr/local/etc/calculator.json"};
 };
 app::app(int argc, char** argv)
 {
     m_impl = std::make_unique<Impl>();
-    m_impl->m_is_run = parce_cli_args(argc, argv);
+    m_impl->m_is_run = parse_cli_args(argc, argv);
 }
 app::~app() = default;
-bool app::parce_cli_args(int argc, char** argv)
+bool app::parse_cli_args(int argc, char** argv)
 {
     int opt;
     int option_index = 0;
-    static struct option long_options[] = {{"help", no_argument, 0, 'h'},
-                                           {"debug", no_argument, 0, 'd'},
-                                           {0, 0, 0, 0}};
+    static struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"config", required_argument, 0, 'c'},
+        {0, 0, 0, 0}};
     bool is_run = true;
-    while ((opt = getopt_long(argc, argv, "hd", long_options, &option_index)) !=
-           -1)
+    while ((opt = getopt_long(argc, argv, "hc:", long_options,
+                              &option_index)) != -1)
     {
         switch (opt)
         {
@@ -42,13 +43,13 @@ bool app::parce_cli_args(int argc, char** argv)
                 print_help(argv[0]);
                 is_run = false;
                 break;
+            case 'c':
+                m_impl->m_config_path = optarg;
+                break;
             case '?':
                 Logger::instance().error(fmt::format(
                     "Try '{} --help' for more information.", argv[0]));
                 is_run = false;
-                break;
-            case 'd':
-                m_impl->m_is_debug = true;
                 break;
             default:
                 break;
@@ -60,20 +61,24 @@ bool app::parce_cli_args(int argc, char** argv)
 void app::print_help(std::string_view program_name)
 {
     std::stringstream ss;
-    ss << "Usage: " << program_name << " [-d]" << std::endl;
+    ss << "Usage: " << program_name << " [-c CONFIG]" << std::endl;
     ss << std::endl;
     ss << "Options:" << std::endl;
-    ss << "  -h, --help     Show this help message and exit" << std::endl;
-    ss << "  -d, --debug    Enable debug mode" << std::endl;
+    ss << "  -h, --help          Show this help message and exit" << std::endl;
+    ss << "  -c, --config PATH   Path to JSON config file "
+          "(default: /usr/local/etc/calculator.json)"
+       << std::endl;
     ss << "\n";
-    ss << "Run: " << program_name << std::endl;
-    ss << "In other terminal run:\n";
-    ss << "  busctl call com.example.CalculatorService \\\n";
-    ss << "             /com/example/CalculatorObject \\\n";
-    ss << "             com.example.CalculatorInterface \\\n";
-    ss << "             Calculate \\\n";
-    ss << "              s '{\"firstValue\": 5, \"operation\": \"+\", \"secondValue\": 3}'\n\n";
+    ss << "Run: " << program_name << " --config /usr/local/etc/calculator.json"
+       << std::endl;
     Logger::instance().info(ss.str());
+}
+
+void app::load_config()
+{
+    m_impl->m_config = Config::load_from_file(m_impl->m_config_path);
+    Logger::instance().info(
+        fmt::format("Config loaded from {}", m_impl->m_config_path));
 }
 
 void app::run()
@@ -82,7 +87,17 @@ void app::run()
     {
         return;
     }
-    Logger::init(m_impl->m_is_debug);
+    try
+    {
+        load_config();
+    }
+    catch (const std::exception& e)
+    {
+        Logger::instance().error(
+            fmt::format("Failed to load config: {}", e.what()));
+        return;
+    }
+    Logger::init(m_impl->m_config.log_level == "debug");
     try
     {
         sigset_t set;
@@ -98,16 +113,16 @@ void app::run()
         }
         auto history = std::make_shared<HistoryService>(
             std::make_unique<storage::PostgresStorage>(
-                "host=localhost dbname=calc user=calc password=calc_password"),
-            std::make_unique<storage::RedisCache>("tcp://127.0.0.1:6379"));
+                m_impl->m_config.postgres_connection),
+            std::make_unique<storage::RedisCache>(m_impl->m_config.redis_uri));
 
-        auto&& onCalculate = [history](const std::string& input) {
+        auto onCalculate = [history](const std::string& input) {
             try
             {
                 Logger::instance().debug("request: " + input + "\n");
                 auto task =
                     nlohmann::json::parse(input).get<calculator::Task>();
-                history->process(task); // calculator::Calculator::execute(task);
+                history->process(task);
                 nlohmann::json responce = task;
                 Logger::instance().debug("responce: " + responce.dump() + "\n");
                 return responce.dump();
@@ -122,16 +137,57 @@ void app::run()
             }
         };
 
-        m_impl->m_server = std::make_unique<DBusServer>(onCalculate);
-        m_impl->m_server->async_run();
+        switch (m_impl->m_config.mode)
+        {
+            case ServiceMode::DBUS_ONLY:
+                m_impl->m_dbus_server = std::make_unique<DBusServer>(
+                    std::function<std::string(const std::string&)>(
+                        onCalculate));
+                m_impl->m_dbus_server->async_run();
+                Logger::instance().info("D-Bus server started");
+                break;
+
+            case ServiceMode::TCP_ONLY:
+                m_impl->m_tcp_server = std::make_unique<TCPServer>(
+                    m_impl->m_config.tcp_address, m_impl->m_config.tcp_port,
+                    onCalculate);
+                m_impl->m_tcp_server->async_run();
+                Logger::instance().info(fmt::format(
+                    "TCP server started on {}:{}", m_impl->m_config.tcp_address,
+                    m_impl->m_config.tcp_port));
+                break;
+
+            case ServiceMode::BOTH:
+                m_impl->m_dbus_server = std::make_unique<DBusServer>(
+                    std::function<std::string(const std::string&)>(
+                        onCalculate));
+                m_impl->m_dbus_server->async_run();
+                m_impl->m_tcp_server = std::make_unique<TCPServer>(
+                    m_impl->m_config.tcp_address, m_impl->m_config.tcp_port,
+                    onCalculate);
+                m_impl->m_tcp_server->async_run();
+                Logger::instance().info(fmt::format(
+                    "Both D-Bus and TCP servers started (TCP on {}:{})",
+                    m_impl->m_config.tcp_address, m_impl->m_config.tcp_port));
+                break;
+        }
+
         Logger::instance().info("Server started, waiting for signals");
 
         int sig;
-        int rc = sigwait(&set, &sig);
+        sigwait(&set, &sig);
         Logger::instance().info(
-            fmt::format("Signal received: {}. stop Dbus", sig));
-        m_impl->m_server->stop();
-        Logger::instance().info("Stopping server");
+            fmt::format("Signal received: {}. Stopping servers...", sig));
+
+        if (m_impl->m_dbus_server)
+        {
+            m_impl->m_dbus_server->stop();
+        }
+        if (m_impl->m_tcp_server)
+        {
+            m_impl->m_tcp_server->stop();
+        }
+        Logger::instance().info("Servers stopped");
     }
     catch (const sdbus::Error& e)
     {
@@ -142,7 +198,8 @@ void app::run()
     }
     catch (const std::exception& e)
     {
-        // fail-fast: без Postgres на старте не поднимаемся, systemd перезапустит
+        // fail-fast: без Postgres на старте не поднимаемся, systemd
+        // перезапустит
         Logger::instance().error(
             fmt::format("fatal error on startup: {}", e.what()));
         return;
@@ -151,9 +208,13 @@ void app::run()
 
 void app::stop()
 {
-    if (m_impl->m_server)
+    if (m_impl->m_dbus_server)
     {
-        m_impl->m_server->stop();
+        m_impl->m_dbus_server->stop();
+    }
+    if (m_impl->m_tcp_server)
+    {
+        m_impl->m_tcp_server->stop();
     }
 }
 } // namespace calculator

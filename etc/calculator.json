@@ -1,0 +1,8 @@
+{
+    "mode": "both",
+    "tcp_address": "0.0.0.0",
+    "tcp_port": 1234,
+    "log_level": "info",
+    "postgres_connection": "host=localhost dbname=calc user=calc password=calc_password",
+    "redis_uri": "tcp://127.0.0.1:6379"
+}
