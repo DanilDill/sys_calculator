@@ -26,6 +26,24 @@ target_link_libraries(integration_tests
 include(GoogleTest)
 gtest_discover_tests(integration_tests)
 
+# TCP интеграционные тесты
+add_executable(tcp_integration_tests
+    tcp_integration_test.cpp
+)
+
+target_include_directories(tcp_integration_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(tcp_integration_tests
+    PRIVATE
+        GTest::gtest_main
+        pthread
+        calculator_logic
+)
+
+gtest_discover_tests(tcp_integration_tests)
+
 if(VALGRIND_EXECUTABLE)
     add_test(NAME integration_tests_memcheck
         COMMAND ${VALGRIND_EXECUTABLE}

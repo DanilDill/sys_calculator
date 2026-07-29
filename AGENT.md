@@ -2,7 +2,7 @@
 
 ## Назначение
 
-Calculator — это системный сервис для Linux (Ubuntu 24), предоставляющий вычислительные операции через D-Bus интерфейс. Сервис поддерживает базовые арифметические операции (+, -, *, /, ^, !), кэширование результатов в Redis инициализацию истории записей в PostgreSQL. Управляется через systemd/systemctl, работает как system bus D-Bus сервис.
+Calculator — это системный сервис для Linux (Ubuntu 24), предоставляющий вычислительные операции через D-Bus и/или TCP интерфейс. Сервис поддерживает базовые арифметические операции (+, -, *, /, ^, !), кэширование результатов в Redis инициализацию истории записей в PostgreSQL. Управляется через systemd/systemctl, работает как system bus D-Bus сервис. Режим работы (только D-Bus, только TCP или оба сразу) и все параметры подключения задаются в JSON конфиге.
 
 ## Технологический стек
 
@@ -11,6 +11,7 @@ Calculator — это системный сервис для Linux (Ubuntu 24), 
 - **Управление зависимостями**: FetchContent (для libmath), find_package (для остальных)
 - **Ключевые библиотеки**:
   - `sdbus-c++` — D-Bus коммуникация
+  - `Boost.Asio` (`libboost-system-dev`) — TCP сервер и клиент
   - `nlohmann_json` — JSON сериализация/десериализация
   - `spdlog` + `fmt` — логирование
   - `libpq` (PostgreSQL) - инициализацию хранение истории вычислений
@@ -71,8 +72,11 @@ Calculator — это системный сервис для Linux (Ubuntu 24), 
 
 | Класс | Файлы | Ответственность |
 |-------|-------|-----------------|
-| `calculator::app` | `src/app.hpp`, `src/app.cpp` | Точка входа, управление жизненным циклом, обработка CLI аргументов (`-h`, `-d`), инициализация сервисов, обработка сигналов (SIGINT/SIGTERM) |
+| `calculator::app` | `src/app.hpp`, `src/app.cpp` | Точка входа, управление жизненным циклом, обработка CLI аргументов (`-h`, `-c`), загрузка конфига, запуск серверов по режиму, обработка сигналов (SIGINT/SIGTERM) |
+| `calculator::Config` | `src/config.hpp`, `src/config.cpp` | Структура конфигурации и парсер JSON: режим работы, TCP address/port, уровень логирования, строки подключения к PostgreSQL/Redis |
 | `calculator::DBusServer` | `src/dbus_server.hpp`, `src/dbus_server.cpp` | Регистрация D-Bus сервиса, обработка вызовов метода `Calculate`, async event loop |
+| `calculator::TCPServer` | `src/tcp_server.hpp`, `src/tcp_server.cpp` | TCP сервер на Boost.Asio (Pimpl): async accept, обработка сессий, разбор сообщений по `\0`-разделителю, тот же handler что и D-Bus |
+| `calculator::TCPClient` | `src/tcp_client.hpp`, `src/tcp_client.cpp` | Синхронный TCP клиент: connect/send_request/disconnect, `\0`-разделитель |
 | `HistoryService` | `src/history_service.hpp`, `src/history_service.cpp` | Координация между кэшем и БД: проверка кэша → вычисление → сохранение |
 | `calculator::Calculator` | `src/calculator.hpp`, `src/calculator.cpp` | Бизнес-логика: выполнение математических операций через libmath |
 | `calculator::Task` | `src/task.hpp`, `src/task.cpp` | DTO для передачи данных: value1, value2, operation, result, status; JSON сериализация (nlohmann) |
@@ -107,6 +111,10 @@ sys_calculator/
 │   ├── main.cpp                # Точка входа: создает app и вызывает run()
 │   ├── app.hpp/cpp             # Управление жизненным циклом, CLI args, signal handling
 │   ├── dbus_server.hpp/cpp     # D-Bus сервер: регистрация интерфейса, event loop
+│   ├── tcp_server.hpp/cpp      # TCP сервер на Boost.Asio (Pimpl)
+│   ├── tcp_client.hpp/cpp      # TCP клиент (Pimpl)
+│   ├── tcp_client_main.cpp     # main() утилиты calculator_client
+│   ├── config.hpp/cpp          # Конфигурация: структура Config + парсер JSON
 │   ├── calculator.hpp/cpp      # Бизнес-логика: выполнение операций через libmath
 │   ├── task.hpp/cpp            # DTO: структура Task, JSON сериализация
 │   ├── history_service.hpp/cpp # Координация кэша и БД
@@ -119,6 +127,7 @@ sys_calculator/
 │   └── integration_test.cpp    # Integration test: D-Bus вызов сложения
 │
 ├── etc/                        # Конфигурационные файлы для установки
+│   ├── calculator.json         # Пример JSON конфига (устанавливается в /usr/local/etc)
 │   ├── dbus-1/
 │   │   └── system.d/
 │   │       └── com.example.CalculatorService.conf  # D-Bus policy: доступ root и default
@@ -144,6 +153,7 @@ sys_calculator/
 
 ```bash
 sudo apt install libsdbus-c++-dev libhiredis-dev libspdlog-dev libpq-dev \
+                 libboost-system-dev \
                  postgresql postgresql-contrib redis-server \
                  cmake g++ pkg-config
 ```
@@ -179,17 +189,20 @@ make
 
 ```bash
 # Запуск вручную (требуются запущенные PostgreSQL и Redis)
-./build/calculator
+# Режим и параметры берутся из конфига (по умолчанию /usr/local/etc/calculator.json)
+./build/calculator --config etc/calculator.json
 
-# Или с debug логом
-./build/calculator -d
+# Уровень логирования задаётся полем "log_level" в конфиге ("debug" | "info")
 
-# В другом терминале — вызов через D-Bus
+# В другом терминале — вызов через D-Bus (если mode = dbus_only|both)
 busctl call com.example.CalculatorService \
             /com/example/CalculatorObject \
             com.example.CalculatorInterface \
             Calculate \
             s '{"firstValue": 5, "operation": "+", "secondValue": 3}'
+
+# Или через TCP (если mode = tcp_only|both)
+./build/calculator_client --host 127.0.0.1 --port 1234 --test
 ```
 
 ### Установка как системный сервис
@@ -344,6 +357,90 @@ busctl call com.example.CalculatorService \
 
 - `root` может владеть сервисом (`own`)
 - Все пользователи могут отправлять сообщения сервису (`send_destination`)
+
+## TCP интерфейс
+
+Помимо D-Bus, сервис может принимать те же вычислительные запросы по TCP. Логика обработки полностью переиспользуется: и D-Bus, и TCP вызывают один и тот же handler (`HistoryService::process`), поэтому кэширование, сохранение в БД и коды статусов идентичны.
+
+### Параметры подключения
+
+| Параметр | Значение по умолчанию | Описание |
+|----------|-----------------------|----------|
+| `tcp_address` | `0.0.0.0` | Адрес прослушивания |
+| `tcp_port` | `1234` | Порт прослушивания |
+
+### Протокол обмена
+
+- Транспорт: raw TCP.
+- Формат сообщения: JSON строка (тот же формат, что и в D-Bus методе `Calculate`), завершённая **нулевым байтом** (`\0`).
+- Ответ: JSON строка результата, также завершённая `\0`.
+- В рамках одного соединения можно отправлять несколько запросов подряд — сервер обрабатывает каждое сообщение по мере получения полного (до `\0`), корректно переживая фрагментацию TCP.
+
+Пример запроса (без учёта завершающего `\0`):
+```json
+{"firstValue": 5, "operation": "+", "secondValue": 3}
+```
+Пример ответа:
+```json
+{"firstValue":5,"operation":"+","secondValue":3,"result":8,"status":"success"}
+```
+
+Поддерживаемые операции и коды статусов совпадают с D-Bus интерфейсом (см. таблицу выше). Поле `result` присутствует только при `status == "success"`.
+
+### Клиентская утилита `calculator_client`
+
+Отдельный исполняемый файл для обращения к TCP серверу.
+
+```bash
+# Интерактивный режим: JSON-запросы построчно (Ctrl+D для выхода)
+calculator_client --host 127.0.0.1 --port 1234
+
+# Автоматический тест: 10 запросов, включая edge cases
+calculator_client --host 127.0.0.1 --port 1234 --test
+
+# С отладочным логом
+calculator_client --host 127.0.0.1 --port 1234 --debug
+```
+
+## Конфигурация
+
+Все параметры сервиса задаются в JSON файле. Путь указывается флагом `--config` (по умолчанию `/usr/local/etc/calculator.json`). Пример-шаблон лежит в репозитории: `etc/calculator.json`.
+
+```json
+{
+    "mode": "both",
+    "tcp_address": "0.0.0.0",
+    "tcp_port": 1234,
+    "log_level": "info",
+    "postgres_connection": "host=localhost dbname=calc user=calc password=calc_password",
+    "redis_uri": "tcp://127.0.0.1:6379"
+}
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|------|-----|--------------|----------|
+| `mode` | string | `dbus_only` | Режим: `dbus_only` (или `dbus`), `tcp_only` (или `tcp`), `both` |
+| `tcp_address` | string | `0.0.0.0` | Адрес TCP сервера (используется в `tcp_only`/`both`) |
+| `tcp_port` | int | `1234` | Порт TCP сервера (1..65535) |
+| `log_level` | string | `info` | `debug` включает отладочный лог, иначе `info` |
+| `postgres_connection` | string | `host=localhost dbname=calc user=calc password=calc_password` | Строка подключения к PostgreSQL |
+| `redis_uri` | string | `tcp://127.0.0.1:6379` | URI подключения к Redis |
+
+**Поведение парсера** (`Config::load_from_file`):
+- Файл не существует / не читается → `std::runtime_error` с понятным сообщением, сервис не стартует.
+- Невалидный JSON → `std::runtime_error` (перехват `nlohmann::json::exception`).
+- Отсутствующие поля → используются значения по умолчанию.
+- Некорректное значение `mode` или `tcp_port` вне диапазона → ошибка валидации.
+
+### Запуск в разных режимах
+
+```bash
+# Режим задаётся полем "mode" в конфиге
+./calculator --config etc/calculator.json          # both (по умолчанию в примере)
+
+# Только TCP: в конфиге "mode": "tcp_only"
+# Только D-Bus: в конфиге "mode": "dbus_only"
+```
 
 ## Хранение данных
 
@@ -507,11 +604,14 @@ make format
 
 ## Известные ограничения и TODO
 
-### Hardcoded конфигурации
+### Конфигурация вынесена в JSON
 
-Следующие параметры захардкожены в `app.cpp` и требуют вынесения в конфиг:
-- PostgreSQL connection string: `"host=localhost dbname=calc user=calc password=calc_password"`
-- Redis URI: `"tcp://127.0.0.1:6379"`
+Ранее захардкоженные в `app.cpp` параметры (PostgreSQL connection string, Redis URI) теперь читаются из JSON конфига (`Config`, см. раздел «Конфигурация»). Значения по умолчанию совпадают с прежними хардкодами, так что поведение без конфига не меняется.
+
+### Возможные улучшения
+
+- TLS/аутентификация для TCP соединений (сейчас соединение открытое).
+- `Type=dbus` в systemd unit ждёт появления BusName — для чистого `tcp_only` режима стоит переключить на `Type=simple`.
 
 
 ## Быстрый старт для разработчиков
@@ -521,6 +621,7 @@ make format
 ```bash
 # Установка зависимостей
 sudo apt install libsdbus-c++-dev libhiredis-dev libspdlog-dev libpq-dev \
+                 libboost-system-dev \
                  postgresql postgresql-contrib redis-server \
                  cmake g++ pkg-config clang-format valgrind
 

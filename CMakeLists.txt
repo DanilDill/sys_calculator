@@ -13,6 +13,8 @@ find_package(spdlog REQUIRED)
 find_package(PostgreSQL REQUIRED)
 
 find_package(redis++ CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(Threads REQUIRED)
 pkg_check_modules(HIREDIS REQUIRED IMPORTED_TARGET hiredis)
 set(DBUS_FLAGS "")
 foreach(dir ${DBUS_INCLUDE_DIRS})
@@ -96,6 +98,12 @@ add_library(calculator_logic STATIC
     src/postgres_storage.cpp
     src/history_service.hpp
     src/history_service.cpp
+    src/config.hpp
+    src/config.cpp
+    src/tcp_server.hpp
+    src/tcp_server.cpp
+    src/tcp_client.hpp
+    src/tcp_client.cpp
 )
 
 target_include_directories(calculator_logic PUBLIC
@@ -113,6 +121,8 @@ target_link_libraries(calculator_logic
        redis++::redis++_static
        PkgConfig::HIREDIS
        ${PostgreSQL_LIBRARIES}
+       Boost::system
+       Threads::Threads
 )
 
 target_compile_options(calculator_logic PRIVATE ${DBUS_CFLAGS_OTHER})
@@ -136,6 +146,31 @@ target_link_libraries(calculator
 )
 
 target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
+
+# TCP клиент — отдельный исполняемый файл
+add_executable(calculator_client
+    src/tcp_client.hpp
+    src/tcp_client.cpp
+    src/tcp_client_main.cpp
+    src/logger.hpp
+    src/logger.cpp
+)
+
+target_include_directories(calculator_client PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(calculator_client
+    PRIVATE
+        Boost::system
+        Threads::Threads
+        nlohmann_json::nlohmann_json
+        spdlog::spdlog
+)
+
+install(TARGETS calculator_client
+    RUNTIME DESTINATION /usr/local/bin
+)
 
 
 
@@ -167,8 +202,16 @@ install(TARGETS calculator
     RUNTIME DESTINATION /usr/local/bin
 )
 
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/etc/
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/etc/dbus-1
   DESTINATION /etc
+)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/etc/systemd
+  DESTINATION /etc
+)
+
+# Пример конфига устанавливается в /usr/local/etc
+install(FILES ${CMAKE_SOURCE_DIR}/etc/calculator.json
+  DESTINATION /usr/local/etc
 )
 
 add_custom_target(package_calculator
@@ -183,6 +226,7 @@ add_custom_target(package_calculator
 include(CPack)
 
 # Подключаем тесты
+enable_testing()
 add_subdirectory(tests)
 
 find_package(Doxygen REQUIRED dot)

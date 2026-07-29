@@ -1,4 +1,7 @@
+#include "config.hpp"
 #include "dbus_server.hpp"
+#include "tcp_server.hpp"
+
 #include <memory>
 namespace calculator
 {
@@ -16,11 +19,11 @@ public:
     app& operator=(app&& other) noexcept = delete;
     void run();
     void stop();
-    
+
 private:
-    bool parce_cli_args(int argc, char** argv);
+    bool parse_cli_args(int argc, char** argv);
     void print_help(std::string_view app_name);
+    void load_config();
 };
 
 }
-
