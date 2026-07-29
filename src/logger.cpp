@@ -1,15 +1,17 @@
 #include "logger.hpp"
+
 #include <spdlog/spdlog.h>
 Logger::Logger()
-{
-}
+{}
 void Logger::init(bool is_debug)
 {
     spdlog::set_level(is_debug ? spdlog::level::debug : spdlog::level::info);
 }
-Logger::~Logger(){}
+Logger::~Logger()
+{}
 
-Logger& Logger::instance() {
+Logger& Logger::instance()
+{
     static Logger instance;
     return instance;
 }

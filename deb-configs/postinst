@@ -1,31 +1,55 @@
 #!/bin/bash
 
-systemctl daemon-reload
+PG_USER="calc"
+PG_DB="calc"
+PG_PASSWORD="calc_password"
 
-echo "Создаём пользователя и группу calculator (если ещё не существуют)"
-if ! getent group calculator >/dev/null; then
-  groupadd -f  calculator
-fi
+setup_database() {
+    # postgres может быть не запущен сразу после установки зависимостей
+    if ! systemctl is-active --quiet postgresql; then
+        echo "Запускаем postgresql"
+        systemctl start postgresql
+    fi
 
-if ! id -u calculator >/dev/null 2>&1; then
-  useradd -m -k /dev/null -g calculator calculator
-fi
+    # ждём готовности (initdb + старт могут занять время)
+    for i in $(seq 1 10); do
+        if sudo -u postgres pg_isready -q; then
+            break
+        fi
+        echo "Ожидаем готовности postgres ($i)..."
+        sleep 1
+    done
 
-echo 'Устанавливаем права на файлы'
-chown -R calculator:calculator /usr/local/bin/calculator
-chmod 755 /usr/local/bin/calculator
+    # идемпотентное создание роли
+    if ! sudo -u postgres psql -tAc \
+        "SELECT 1 FROM pg_roles WHERE rolname='${PG_USER}'" | grep -q 1; then
+        echo "Создаём роль ${PG_USER}"
+        sudo -u postgres psql -c \
+            "CREATE USER ${PG_USER} WITH PASSWORD '${PG_PASSWORD}'"
+    fi
 
-echo "Перечитываем конфигурации systemd"
-systemctl daemon-reload
+    # идемпотентное создание базы
+    if ! sudo -u postgres psql -tAc \
+        "SELECT 1 FROM pg_database WHERE datname='${PG_DB}'" | grep -q 1; then
+        echo "Создаём базу ${PG_DB}"
+        sudo -u postgres createdb -O "${PG_USER}" "${PG_DB}"
+    fi
+}
 
-echo "Перезапускаем системный D-Bus для применения policy"
-systemctl restart dbus.service
+case "$1" in
+    configure)
+        setup_database
 
-echo 'Запускаем calculator'
-systemctl enable calculator
-systemctl start calculator
+        echo "Перечитываем конфигурации systemd"
+        systemctl daemon-reload
 
-sleep 1
+        echo "Перечитываем конфигурацию D-Bus"
+        systemctl reload dbus.service || true
 
-echo 'Состояние сервиса calculator'
-systemctl --no-pager status calculator
+        echo "Запускаем calculator"
+        systemctl enable calculator
+        systemctl restart calculator
+        ;;
+esac
+
+exit 0

@@ -4,11 +4,16 @@ project(calculator LANGUAGES CXX)
 
 set(CMAKE_INSTALL_PREFIX "/usr/local")
 
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig REQUIRED)
 find_package(sdbus-c++ REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(PostgreSQL REQUIRED)
+
+find_package(redis++ CONFIG REQUIRED)
+pkg_check_modules(HIREDIS REQUIRED IMPORTED_TARGET hiredis)
 set(DBUS_FLAGS "")
 foreach(dir ${DBUS_INCLUDE_DIRS})
     list(APPEND DBUS_FLAGS "-I${dir}")
@@ -86,11 +91,17 @@ add_library(calculator_logic STATIC
     src/app.cpp
     src/logger.hpp
     src/logger.cpp
+    src/redis_cache.hpp
+    src/postgres_storage.hpp
+    src/postgres_storage.cpp
+    src/history_service.hpp
+    src/history_service.cpp
 )
 
 target_include_directories(calculator_logic PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${DBUS_INCLUDE_DIRS}
+    ${PostgreSQL_INCLUDE_DIRS}
 )
 
 target_link_libraries(calculator_logic
@@ -99,6 +110,9 @@ target_link_libraries(calculator_logic
         nlohmann_json::nlohmann_json
         SDBusCpp::sdbus-c++
         spdlog::spdlog
+       redis++::redis++_static
+       PkgConfig::HIREDIS
+       ${PostgreSQL_LIBRARIES}
 )
 
 target_compile_options(calculator_logic PRIVATE ${DBUS_CFLAGS_OTHER})
@@ -111,12 +125,14 @@ add_executable(calculator
 
 target_include_directories(calculator PRIVATE
     ${DBUS_INCLUDE_DIRS}
+    ${PostgreSQL_INCLUDE_DIRS}
 )
 
 target_link_libraries(calculator
     PRIVATE
         math
         calculator_logic
+        ${PostgreSQL_LIBRARIES}
 )
 
 target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
@@ -125,12 +141,12 @@ target_compile_options(calculator PRIVATE ${DBUS_CFLAGS_OTHER})
 
 # Set package information
 set(CPACK_PACKAGE_NAME "sys-calculator")
-set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_VERSION "1.3.0")
 set(CPACK_PACKAGE_CONTACT "Danil Dil")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "System calculator service")
 set(CPACK_PACKAGE_DESCRIPTION "Calculator application that runs as a systemd service")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Danil Dil")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libdbus-1-3")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libdbus-1-3, libpq5")
 set(CPACK_GENERATOR "DEB")
 # Define variables for script templates
 set(PROJECT_DESCRIPTION "System Calculator Service")

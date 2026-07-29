@@ -1,8 +1,8 @@
 // #include "app.h"
 // #include "args_parser.h"
 #include "calculator.hpp"
-#include "libmath.h"
 
+#include "libmath.h"
 
 #include <execinfo.h>
 
@@ -19,7 +19,7 @@ void Calculator::execute(Task& task)
     switch (task.operation)
     {
         case '+':
-            task.result = math::add(task.value1, task.value2,err);
+            task.result = math::add(task.value1, task.value2, err);
             break;
         case '-':
             task.result = math::sub(task.value1, task.value2, err);
